@@ -21,8 +21,8 @@ This is a trading bot designed to automate trading strategies using Telegram cha
 
 1. **Clone the repository**:
     ```bash
-    git clone https://github.com/yourusername/trading-bot.git
-    cd trading-bot
+    git clone https://github.com/Vartius/BingXtg.git
+    cd BingXtg
     ```
 
 2. **Install the required packages**:
