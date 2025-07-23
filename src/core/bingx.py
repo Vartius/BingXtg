@@ -1,3 +1,4 @@
+
 import json
 import time
 
@@ -16,20 +17,27 @@ from config import (
 
 
 def set_order(chan_id, coin, method, sim=True):
-    with open("src/data/curdata.json", encoding="utf-8") as f:
-        data = json.load(f)
-    with open("src/data/winrate.json", encoding="utf-8") as f:
-        winrate = json.load(f)
-    logger.success(f"{chan_id} got winrate and curdata")
+    try:
+        with open("src/data/curdata.json", "r", encoding="utf-8") as f:
+            data = json.load(f)
+        with open("src/data/winrate.json", "r", encoding="utf-8") as f:
+            winrate = json.load(f)
+        logger.success(f"{chan_id} got winrate and curdata")
+    except (FileNotFoundError, json.JSONDecodeError) as e:
+        logger.error(f"Error reading data files in set_order: {e}")
+        return None
 
-    if (winrate[chan_id]["lose"] + winrate[chan_id]["win"]) <= MIN_ORDERS_TO_HIGH:
+    chan_winrate = winrate.get(chan_id, {"win": 0, "lose": 0})
+
+    if (chan_winrate["lose"] + chan_winrate["win"]) <= MIN_ORDERS_TO_HIGH:
         k = 0
     else:
-        k = winrate[chan_id]["win"] / (
-            winrate[chan_id]["lose"] + winrate[chan_id]["win"]
+        k = chan_winrate["win"] / (
+            chan_winrate["lose"] + chan_winrate["win"]
         )
         logger.info(f"IT SHOULD BE TRADING {k} {not sim}")
-    money = data["available_balance"] * (0.01 + MAX_PERCENT * k)
+
+    money = data.get("available_balance", 0) * (0.01 + MAX_PERCENT * k)
 
     if k != 0 and not sim:
         logger.info(f"IT SHOULD BE TRADING OKAY {k} {not sim}")
@@ -41,6 +49,10 @@ def set_order(chan_id, coin, method, sim=True):
         logger.warning(f"{coin} price = None")
         data["available_balance"] += money
         return data
+        
+    if chan_id not in data["orders"]:
+        data["orders"][chan_id] = {}
+
     data["orders"][chan_id][coin] = {
         "method": method,
         "money": money * LEVERAGE,
