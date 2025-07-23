@@ -12,7 +12,7 @@ import numpy as np
 
 from loguru import logger
 from pyrogram.client import Client
-from pyrogram import filters
+from pyrogram import filters, errors
 from pyrogram.sync import idle
 from pyrogram.types import Message
 from src.core.text import textHandler
@@ -58,7 +58,7 @@ def get_chats() -> List[int | str]:
         return [int(channel) for channel in channels]
     except (FileNotFoundError, json.JSONDecodeError, ValueError) as e:
         logger.error(f"Could not load or parse chats from channels.json: {e}")
-        return []
+        exit(1)
 
 
 chats = get_chats()
@@ -68,76 +68,68 @@ else:
     logger.warning("No chats were loaded. The bot will not listen to any channels.")
 
 @app.on_message(filters.chat(chats))
-async def channel_parser(user: Client, message: Message):
-    logger.info(f"{message.chat.title}({message.chat.id}) Got message")
-    method = ""
-    coin = ""
-    text = message.caption
-    if text is None:
-        text = message.text
-    if text is None:
-        logger.warning(f"{message.chat.title}({message.chat.id}) No text")
+async def channel_parser(client: Client, message: Message):
+    chat_id_str = str(message.chat.id)
+    chat_title = message.chat.title or "Unknown Chat"
+    logger.info(f"{chat_title}({chat_id_str}) Got message")
+
+    text = message.text or message.caption
+    if not text:
+        logger.warning(f"{chat_title}({chat_id_str}) No text in message.")
         return
 
-    if text == ".chatsCheck":
-        titles = []
-        for i in chats:
+    # --- Command Handling ---
+    if text.startswith("."):
+        command = text.lower()
+        if command == ".chatscheck":
+            titles = []
+            for chat_id in chats:
+                try:
+                    chat = await client.get_chat(chat_id)
+                    titles.append(chat.title or f"Chat {chat_id}")
+                except errors as e:
+                    logger.error(f"Could not get info for chat {chat_id}: {e}")
+                    titles.append(f"Error fetching chat {chat_id}")
+            await message.reply("\n".join(titles))
+            logger.success(f"({chat_id_str}) Chats check completed.")
+        
+        elif command == ".chats":
             try:
-                title = await app.get_chat(int(i))
-                titles.append(title.title)
-            except Exception as e:
-                logger.error(e)
-        await message.reply("\n".join(i for i in titles))
-        logger.success(
-            f"{message.chat.title}({message.chat.id}) chats checking (slow mode) success"
-        )
-        return
-    elif text == ".chats":
-        with open("src/data/channels.json", encoding="utf-8") as f:
-            channels = json.load(f)
-        await message.reply("\n".join(f"{channels[i]['name']} {i}" for i in channels))
-        await message.reply(" ".join(str(i) for i in chats))
-        logger.success(
-            f"{message.chat.title}({message.chat.id}) chats checking success"
-        )
-        return
-    elif text == ".stop":
-        logger.info(f"{message.chat.title}({message.chat.id}) stop")
-        os._exit(0)
-    elif text == ".addTestOrders":
-        for coin in ["CRV", "UNI", "BTC", "ETH", "XRP", "STORJ", "AAVE"]:
-            data = set_order(
-                str(message.chat.id), coin, random.choice(["long", "short"]), sim
-            )
-            with open("src/data/curdata.json", "w+", encoding="utf-8") as f:
-                json.dump(data, f, indent=4)
-        return
-    elif text == ".getData":
-        logger.info(f"{message.chat.title}({message.chat.id}) sending all data")
-        headers = [
-            "Channel",
-            "Coin",
-            "Diraction",
-            "Deposit*L",
-            "Order Price",
-            "Current Price",
-            "Profit",
-            "Procent",
-        ]
-        with open("src/data/table.json", encoding="utf-8") as f:
-            table = json.load(f)
-        new_data = [i for i in table["data"]]
-        table_data = {}
-        for i in headers:
-            table_data[i] = []
-        for row in new_data:
-            t = list(row)
-            while len(t) != 8:
-                t.append(np.nan)
-            for k, i in enumerate(headers):
-                table_data[i].append(t[k])
-        df = pd.DataFrame(table_data)
-        df_styled = df.style.set_table_styles(
+                with open("src/data/channels.json", "r", encoding="utf-8") as f:
+                    channels = json.load(f)
+                response = "\n".join(f"{ch_data.get('name', 'N/A')} {ch_id}" for ch_id, ch_data in channels.items())
+                await message.reply(response)
+                logger.success(f"({chat_id_str}) .chats command executed.")
+            except (FileNotFoundError, json.JSONDecodeError) as e:
+                await message.reply("Error reading channels file.")
+                logger.error(f"({chat_id_str}) Failed to execute .chats: {e}")
+
+        elif command == ".stop":
+            logger.info(f"({chat_id_str}) stop command received. Shutting down.")
+            os._exit(0)
+
+        elif command == ".addtestorders":
+            for coin in ["CRV", "UNI", "BTC", "ETH", "XRP", "STORJ", "AAVE"]:
+                data = set_order(chat_id_str, coin, random.choice(["long", "short"]), sim)
+                if data:
+                    try:
+                        with open("src/data/curdata.json", "w", encoding="utf-8") as f:
+                            json.dump(data, f, indent=4)
+                    except IOError as e:
+                        logger.error(f"Failed to write test order data: {e}")
+            logger.success(f"({chat_id_str}) Added test orders.")
+            
+        elif command == ".getdata":
+            logger.info(f"({chat_id_str}) Sending all data.")
+            try:
+                with open("src/data/table.json", "r", encoding="utf-8") as f:
+                    table = json.load(f)
+                
+                headers = [ "Channel", "Coin", "Diraction", "Deposit*L", "Order Price", "Current Price", "Profit", "Procent" ]
+                df = pd.DataFrame(table.get("data", []), columns=headers)
+
+                # Styling
+                df_styled = df.style.set_table_styles(
             [
                 {
                     "selector": ".blank",
@@ -145,42 +137,49 @@ async def channel_parser(user: Client, message: Message):
                 }
             ]
         )
-        df_styled = df_styled.apply(highlight_x, axis=0)
-        df_styled = df_styled.apply_index(highlight_x, axis=0)
-        df_styled = df_styled.apply_index(highlight_headers, axis=1)
-        df_styled = df_styled.background_gradient(
-            subset=["Profit", "Procent"], cmap="RdYlGn"
-        )
-        df_styled = df_styled.format(hide_na)
-        df_styled = df_styled.map(short_long)
-        dfi.export(df_styled, "table.png", max_rows=-1, max_cols=-1) # type: ignore
-        await app.send_photo(message.chat.id, "table.png")
+                df_styled = df_styled.apply(highlight_x, axis=0)
+                df_styled = df_styled.apply_index(highlight_x, axis=0)
+                df_styled = df_styled.apply_index(highlight_headers, axis=1)
+                df_styled = df_styled.background_gradient(
+                    subset=["Profit", "Procent"], cmap="RdYlGn"
+                )
+                df_styled = df_styled.format(hide_na)
+                df_styled = df_styled.map(short_long)
+
+                image_path = "table.png"
+                dfi.export(df_styled, image_path, max_rows=-1) # type: ignore
+                await client.send_photo(message.chat.id, image_path)
+                os.remove(image_path)
+            except FileNotFoundError:
+                await message.reply("`table.json` not found. No data to display.")
+            except Exception as e:
+                logger.error(f"Failed to generate or send data image: {e}")
+                await message.reply("An error occurred while generating the data image.")
         return
 
-    res = textHandler(text, str(message.chat.id))
-    if res is not None:
-        coin = res[0]
-        method = res[1]
-        logger.success(f"{message.chat.title}({message.chat.id}) {res[2]}")
-    else:
+    # --- Signal Processing ---
+    res = textHandler(text, chat_id_str)
+    if not res:
         return
-    if method != "" and coin != "":
-        with open("src/data/curdata.json", encoding="utf-8") as f:
-            coins = json.load(f)["orders"][str(message.chat.id)].keys()
-        if coin not in coins:
-            data = set_order(str(message.chat.id), coin, method)
-            with open("src/data/curdata.json", "w+", encoding="utf-8") as f:
-                json.dump(data, f, indent=4)
-            time.sleep(0.6)
-            with open("src/data/curdata.json", "w+", encoding="utf-8") as f:
-                json.dump(data, f, indent=4)
-            logger.success(
-                f"{message.chat.title}({message.chat.id}) Setting new order successfully"
-            )
-        else:
-            logger.warning(
-                f"{message.chat.title}({message.chat.id}) this coin already exist in data"
-            )
+
+    coin, method, log_msg = res
+    logger.success(f"{chat_title}({chat_id_str}) {log_msg}")
+
+    try:
+        with open("src/data/curdata.json", "r+", encoding="utf-8") as f:
+            data = json.load(f)
+            if coin not in data.get("orders", {}).get(chat_id_str, {}):
+                new_data = set_order(chat_id_str, coin, method)
+                if new_data:
+                    f.seek(0)
+                    json.dump(new_data, f, indent=4)
+                    f.truncate()
+                    logger.success(f"({chat_id_str}) Successfully set new order for {coin}.")
+            else:
+                logger.warning(f"({chat_id_str}) Coin {coin} already exists in orders.")
+    except (FileNotFoundError, json.JSONDecodeError, IOError) as e:
+        logger.error(f"Error processing order for {coin}: {e}")
+
 
 
 async def app_suc():
