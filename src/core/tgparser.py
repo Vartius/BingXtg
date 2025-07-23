@@ -1,6 +1,5 @@
 import os
 import json
-import time
 import random
 
 from typing import List
@@ -8,7 +7,6 @@ from threading import Thread as th
 
 import dataframe_image as dfi
 import pandas as pd
-import numpy as np
 
 from loguru import logger
 from pyrogram.client import Client
