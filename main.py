@@ -6,7 +6,6 @@ from loguru import logger
 from src.core.tgparser import start_parsing
 from config import START_BALANCE
 
-
 def simulate(sim):
     try:
         with open("src/data/curdata.json", encoding="utf-8") as f:
