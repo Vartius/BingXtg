@@ -1,0 +1,27 @@
+# Git
+.git
+.gitignore
+
+# Docker
+Dockerfile
+.dockerignore
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+
+# Project specific
+my_account.session
+logs.log
+config.py
+src/data/curdata.json
+src/data/winrate.json
+src/data/table.json
+table.png
+README.md
