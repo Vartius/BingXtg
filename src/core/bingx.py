@@ -67,9 +67,9 @@ def set_order(chan_id, coin, method, sim=True):
 def get_price(coin):
     try:
         bingx = BingxAPI(APIKEY, SECRETKEY, timestamp="local")
-        return float(bingx.get_latest_price(f"{coin}-USDT"))
+        return float(bingx.get_latest_price(f"{coin}-USDT")['data']['price'])
     except Exception as e:
-        logger.error(e)
+        logger.error(f"Error getting price for {coin}: {e}")
         return None
 
 
