@@ -3,6 +3,7 @@ import json
 import time
 import random
 
+from typing import List
 from threading import Thread as th
 
 import dataframe_image as dfi
@@ -10,13 +11,15 @@ import pandas as pd
 import numpy as np
 
 from loguru import logger
-from pyrogram import Client, filters, idle
+from pyrogram.client import Client
+from pyrogram import filters
+from pyrogram.sync import idle
 from pyrogram.types import Message
 from src.core.text import textHandler
 from src.core.bingx import set_order, updater
 from src.core.tableviewer import startTable
 
-from config import api_id, api_hash, TP, SL, MAX_PERCENT
+from config import api_id, api_hash
 
 app = Client("my_account", api_id=api_id, api_hash=api_hash)
 
@@ -47,8 +50,7 @@ def short_long(val):
     elif val == "short":
         return "background-color: #DC143C; color: #ffffff;"
 
-
-def get_chats():
+def get_chats() -> List[int | str]:
     with open("src/data/channels.json", encoding="utf-8") as f:
         channels = json.load(f)
     return [int(channel) for channel in channels]
@@ -144,12 +146,12 @@ async def channel_parser(user: Client, message: Message):
         )
         df_styled = df_styled.format(hide_na)
         df_styled = df_styled.map(short_long)
-        dfi.export(df_styled, "table.png", max_rows=-1, max_cols=-1)
+        dfi.export(df_styled, "table.png", max_rows=-1, max_cols=-1) # type: ignore
         await app.send_photo(message.chat.id, "table.png")
         return
 
     res = textHandler(text, str(message.chat.id))
-    if res != None:
+    if res is not None:
         coin = res[0]
         method = res[1]
         logger.success(f"{message.chat.title}({message.chat.id}) {res[2]}")
