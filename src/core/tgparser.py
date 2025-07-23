@@ -49,6 +49,7 @@ def short_long(val):
         return "background-color: #00FF7F; color: #ffffff;"
     elif val == "short":
         return "background-color: #DC143C; color: #ffffff;"
+    return ""
 
 def get_chats() -> List[int | str]:
     with open("src/data/channels.json", encoding="utf-8") as f:
