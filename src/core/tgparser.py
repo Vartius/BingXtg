@@ -15,7 +15,8 @@ from pyrogram.sync import idle
 from pyrogram.types import Message
 from src.core.text import textHandler
 from src.core.bingx import set_order, updater
-from src.core.tableviewer import startTable
+# temporarily disabled table viewer due to docker issues with tkinter
+# from src.core.tableviewer import startTable
 
 try:
     from config import api_id, api_hash
@@ -201,5 +202,6 @@ def start_parsing(is_simulating):
     global sim
     sim = is_simulating
     th(target=updater, daemon=True).start()
-    th(target=startTable, daemon=True).start()
+    # stop the table viewer because of docker issue with tkinter
+    # th(target=startTable, daemon=True).start()
     app.run(app_suc())

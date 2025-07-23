@@ -9,4 +9,6 @@ ADD . /app
 WORKDIR /app
 RUN uv sync --locked
 
-CMD ["uv", "run", "my_app"]
+ENV CONTAINER=Yes
+
+CMD ["uv", "run", "main.py"]
