@@ -156,7 +156,8 @@ def update_orders():
             leverage = LEVERAGE
             money = order.get("money", 0)
 
-            if order_price == 0: continue
+            if order_price == 0: 
+                continue
 
             if order.get("method") == "long":
                 profit_perc = (price / order_price - 1) * leverage
