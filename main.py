@@ -4,7 +4,11 @@ import os
 from loguru import logger
 
 from src.core.tgparser import start_parsing
-from config import START_BALANCE
+try:
+    from config import START_BALANCE
+except ImportError:
+    logger.error("START_BALANCE is not defined in config.py. Please set it.")
+    exit(1)
 
 def simulate(sim):
     try:
