@@ -7,19 +7,29 @@ from loguru import logger
 
 def update_table_data():
     try:
-        with open("src/data/table.json", encoding="utf-8") as f:
+        with open("src/data/table.json", "r", encoding="utf-8") as f:
             table = json.load(f)
-        new_data = [i for i in table["data"]]
+        
+        new_data = table.get("data", [])
+        
+        # Clear existing treeview items
         for item in tree.get_children():
             tree.delete(item)
 
+        # Insert new data
         for row in new_data:
             tree.insert("", "end", values=row)
 
-        root.after(1000, update_table_data)
+    except FileNotFoundError:
+        logger.warning("table.json not found. Waiting for it to be created.")
+    except json.JSONDecodeError:
+        logger.error("Error decoding table.json. The file might be corrupted or empty.")
     except Exception as e:
-        logger.error(e)
-        root.after(1000, update_table_data)
+        logger.error(f"An error occurred in update_table_data: {e}")
+    finally:
+        # Schedule the next update
+        if 'root' in globals() and root.winfo_exists():
+            root.after(1000, update_table_data)
 
 
 def startTable():
