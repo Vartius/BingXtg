@@ -1,3 +1,6 @@
 config.py
 *.pyc
 venv/
+__pycache__/
+*.log
+my_account.session
