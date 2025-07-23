@@ -41,10 +41,7 @@ def highlight_headers(s):
 
 
 def hide_na(val):
-    if val is None or pd.isna(val):
-        return ""
-    else:
-        return val
+    return "" if pd.isna(val) else val
 
 
 def short_long(val):
