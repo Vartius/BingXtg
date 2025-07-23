@@ -28,11 +28,11 @@ def set_order(chan_id, coin, method, sim=True):
         k = winrate[chan_id]["win"] / (
             winrate[chan_id]["lose"] + winrate[chan_id]["win"]
         )
-        logger.log(f"IT SHOULD BE TRADING {k} {not sim}")
+        logger.info(f"IT SHOULD BE TRADING {k} {not sim}")
     money = data["available_balance"] * (0.01 + MAX_PERCENT * k)
 
     if k != 0 and not sim:
-        logger.log(f"IT SHOULD BE TRADING OKAY {k} {not sim}")
+        logger.info(f"IT SHOULD BE TRADING OKAY {k} {not sim}")
         set_order_bingx(coin, method, 0.01 + MAX_PERCENT * k)
 
     data["available_balance"] -= money
