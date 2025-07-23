@@ -92,29 +92,46 @@ def get_balance():
         return None, None
 
 def set_order_bingx(coin, diraction, percent):
-    bingx = BingxAPI(APIKEY, SECRETKEY, timestamp="local")
-    bingx.set_margin_mode(f"{coin}-USDT", "ISOLATED")
-    bingx.set_levarage(f"{coin}-USDT", diraction, LEVERAGE)
-    price = float(bingx.get_latest_price(f"{coin}-USDT"))
-    balance, available_balance = get_balance()
-    print(LEVERAGE)
-    q = float(available_balance) * percent / price * LEVERAGE
-    if diraction == "LONG":
-        take = "{:.8f}".format(price * (TP / LEVERAGE + 1))
-        stop = "{:.8f}".format(price * (SL / LEVERAGE + 1))
-    else:
-        stop = "{:.8f}".format(price * (TP / LEVERAGE + 1))
-        take = "{:.8f}".format(price * (SL / LEVERAGE + 1))
-
     try:
+        bingx = BingxAPI(APIKEY, SECRETKEY, timestamp="local")
+        bingx.set_margin_mode(f"{coin}-USDT", "ISOLATED")
+        bingx.set_levarage(f"{coin}-USDT", diraction, LEVERAGE)
+        
+        price_response = bingx.get_latest_price(f"{coin}-USDT")
+        if price_response.get('code') != 0:
+            logger.error(f"Could not get price for {coin} to set order.")
+            return
+
+        price = float(price_response['data']['price'])
+        balance, available_balance = get_balance()
+
+        if balance is None or available_balance is None:
+            logger.error("Could not retrieve balance to set order.")
+            return
+
+        q = float(available_balance) * percent / price * LEVERAGE
+        
+        if diraction.upper() == "LONG":
+            take = "{:.8f}".format(price * (1 + TP / LEVERAGE))
+            stop = "{:.8f}".format(price * (1 - SL / LEVERAGE))
+        else:
+            take = "{:.8f}".format(price * (1 - TP / LEVERAGE))
+            stop = "{:.8f}".format(price * (1 + SL / LEVERAGE))
+
         order_data = bingx.open_market_order(
-            f"{coin}-USDT", diraction, q, tp=take, sl=stop
+            f"{coin}-USDT", diraction.upper(), q, tp=take, sl=stop
         )
-        logger.success(
-            f"ORDER: {order_data['symbol']} {order_data['positionSide']} {order_data['orderId']}"
-        )
+
+        if order_data.get('code') == 0:
+            logger.success(
+                f"ORDER: {order_data['data']['order']['symbol']} {order_data['data']['order']['positionSide']} {order_data['data']['order']['orderId']}"
+            )
+        else:
+            logger.error(f"Failed to place order: {order_data.get('msg')}")
+
     except Exception as e:
-        logger.error(e)
+        logger.error(f"Exception in set_order_bingx: {e}")
+
 
 
 def update_orders():
