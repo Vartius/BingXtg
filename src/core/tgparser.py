@@ -17,7 +17,11 @@ from src.core.text import textHandler
 from src.core.bingx import set_order, updater
 from src.core.tableviewer import startTable
 
-from config import api_id, api_hash
+try:
+    from config import api_id, api_hash
+except ImportError:
+    logger.error("API_ID and API_HASH are not set in config.py. Please define them.")
+    exit(1)
 
 if not api_id or not api_hash:
     logger.error("API_ID and API_HASH are not set in config.py. Exiting.")

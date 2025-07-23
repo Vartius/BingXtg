@@ -5,15 +5,19 @@ import time
 from loguru import logger
 from bingx.api import BingxAPI
 
-from config import (
-    MIN_ORDERS_TO_HIGH,
-    MAX_PERCENT,
-    LEVERAGE,
-    SECRETKEY,
-    APIKEY,
-    TP,
-    SL,
-)
+try:
+    from config import (
+        MIN_ORDERS_TO_HIGH,
+        MAX_PERCENT,
+        LEVERAGE,
+        SECRETKEY,
+        APIKEY,
+        TP,
+        SL,
+    )
+except ImportError:
+    logger.error("Configuration parameters are not set in config.py. Please define them.")
+    exit(1)
 
 
 def set_order(chan_id, coin, method, sim=True):
