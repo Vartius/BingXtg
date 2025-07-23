@@ -198,6 +198,6 @@ async def app_suc():
 def start_parsing(is_simulating):
     global sim
     sim = is_simulating
-    th(target=updater).start()
-    th(target=startTable).start()
+    th(target=updater, daemon=True).start()
+    th(target=startTable, daemon=True).start()
     app.run(app_suc())
