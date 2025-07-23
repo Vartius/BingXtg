@@ -52,9 +52,13 @@ def short_long(val):
     return ""
 
 def get_chats() -> List[int | str]:
-    with open("src/data/channels.json", encoding="utf-8") as f:
-        channels = json.load(f)
-    return [int(channel) for channel in channels]
+    try:
+        with open("src/data/channels.json", "r", encoding="utf-8") as f:
+            channels = json.load(f)
+        return [int(channel) for channel in channels]
+    except (FileNotFoundError, json.JSONDecodeError, ValueError) as e:
+        logger.error(f"Could not load or parse chats from channels.json: {e}")
+        return []
 
 
 chats = get_chats()
