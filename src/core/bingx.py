@@ -161,7 +161,9 @@ def update_orders():
         balance = data["available_balance"]
         for chan_id in data["orders"]:
             for coin in data["orders"][chan_id].keys():
-                balance += profit + data["orders"][chan_id][coin]["money"] / LEVERAGE
+                order = data["orders"][chan_id][coin]
+                profit = order["profit"]
+                balance += profit + order["money"] / LEVERAGE
         data["balance"] = balance
         with open("src/data/curdata.json", "w+", encoding="utf-8") as f:
             json.dump(data, f, indent=4)
