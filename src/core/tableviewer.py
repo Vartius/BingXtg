@@ -35,25 +35,30 @@ def update_table_data():
 def startTable():
     global root
     global tree
-    root = tk.Tk()
-    root.geometry("1000x500")
-    root.title("GUI Table Update")
+    try:
+        root = tk.Tk()
+        root.geometry("1000x500")
+        root.title("GUI Table Update")
 
-    headers = (
-        "Channel",
-        "Coin",
-        "Diraction",
-        "Deposit*L",
-        "Order Price",
-        "Current Price",
-        "Profit",
-        "Procent",
-    )
-    tree = ttk.Treeview(root, columns=headers, show="headings")
-    for col in headers:
-        tree.heading(col, text=col)
-        tree.column(col, anchor="center", width=100)
-    tree.pack(expand=1, fill=tk.BOTH)
-    logger.success("Table View started")
-    update_table_data()
-    root.mainloop()
+        headers = (
+            "Channel",
+            "Coin",
+            "Diraction",
+            "Deposit*L",
+            "Order Price",
+            "Current Price",
+            "Profit",
+            "Procent",
+        )
+        tree = ttk.Treeview(root, columns=headers, show="headings")
+        for col in headers:
+            tree.heading(col, text=col)
+            tree.column(col, anchor="center", width=100)
+        tree.pack(expand=True, fill=tk.BOTH)
+        
+        logger.success("Table View started")
+        update_table_data()
+        root.mainloop()
+    except Exception as e:
+        logger.error(f"Failed to start Table View: {e}")
+
