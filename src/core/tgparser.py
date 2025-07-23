@@ -21,8 +21,11 @@ from src.core.tableviewer import startTable
 
 from config import api_id, api_hash
 
-app = Client("my_account", api_id=api_id, api_hash=api_hash)
+if not api_id or not api_hash:
+    logger.error("API_ID and API_HASH are not set in config.py. Exiting.")
+    exit()
 
+app = Client("my_account", api_id=api_id, api_hash=api_hash)
 
 def highlight_x(s):
     return [
