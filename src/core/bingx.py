@@ -136,73 +136,76 @@ def set_order_bingx(coin, diraction, percent):
 
 def update_orders():
     try:
-        with open("src/data/curdata.json", encoding="utf-8") as f:
+        with open("src/data/curdata.json", "r", encoding="utf-8") as f:
             data = json.load(f)
-        for chan_id in data["orders"]:
-            for coin in data["orders"][chan_id].keys():
-                price = get_price(coin)
-                if price is None:
-                    time.sleep(5)
-                    return
-                with open("src/data/curdata.json", encoding="utf-8") as f:
-                    data = json.load(f)
-                data["orders"][chan_id][coin]["cur_price"] = price
-                if data["orders"][chan_id][coin]["method"] == "long":
-                    profit_perc = (
-                        price / data["orders"][chan_id][coin]["order_price"] - 1
-                    ) * LEVERAGE
-                else:
-                    profit_perc = (
-                        data["orders"][chan_id][coin]["order_price"] / price - 1
-                    ) * LEVERAGE
+    except (FileNotFoundError, json.JSONDecodeError) as e:
+        logger.error(f"UPDATER: Could not read curdata.json: {e}")
+        return
 
-                profit = data["orders"][chan_id][coin]["money"] / LEVERAGE * profit_perc
+    orders_to_delete = []
 
-                data["orders"][chan_id][coin]["profitPerc"] = profit_perc * 100
-                data["orders"][chan_id][coin]["profit"] = profit
+    for chan_id in data.get("orders", {}):
+        for coin, order in data["orders"][chan_id].items():
+            price = get_price(coin)
+            if price is None:
+                time.sleep(5)
+                continue
+
+            order["cur_price"] = price
+            order_price = order.get("order_price", 0)
+            leverage = LEVERAGE
+            money = order.get("money", 0)
+
+            if order_price == 0: continue
+
+            if order.get("method") == "long":
+                profit_perc = (price / order_price - 1) * leverage
+            else:
+                profit_perc = (order_price / price - 1) * leverage
+
+            profit = (money / leverage) * profit_perc
+            order["profitPerc"] = profit_perc * 100
+            order["profit"] = profit
+
+            if profit_perc >= TP or profit_perc <= SL:
+                try:
+                    with open("src/data/winrate.json", "r", encoding="utf-8") as f:
+                        winrate = json.load(f)
+                except (FileNotFoundError, json.JSONDecodeError):
+                    winrate = {}
+                
+                if chan_id not in winrate:
+                    winrate[chan_id] = {"win": 0, "lose": 0}
 
                 if profit_perc >= TP:
-                    with open("src/data/winrate.json", encoding="utf-8") as f:
-                        winrate = json.load(f)
                     winrate[chan_id]["win"] += 1
-                    with open("src/data/winrate.json", "w+", encoding="utf-8") as f:
-                        json.dump(winrate, f, ensure_ascii=False, indent=4)
-                    data["available_balance"] += (
-                        profit + data["orders"][chan_id][coin]["money"] / LEVERAGE
-                    )
-                    logger.success(
-                        f'{data["orders"][chan_id][coin]} was closed with {profit}$'
-                    )
-                    del data["orders"][chan_id][coin]
-                elif profit_perc <= SL:
-                    with open("src/data/winrate.json", encoding="utf-8") as f:
-                        winrate = json.load(f)
+                else:
                     winrate[chan_id]["lose"] += 1
-                    with open("src/data/winrate.json", "w+", encoding="utf-8") as f:
-                        json.dump(winrate, f, ensure_ascii=False, indent=4)
-                    data["available_balance"] += (
-                        profit + data["orders"][chan_id][coin]["money"] / LEVERAGE
-                    )
-                    logger.success(
-                        f'{data["orders"][chan_id][coin]} was closed with {profit}$'
-                    )
-                    del data["orders"][chan_id][coin]
-                with open("src/data/curdata.json", "w+", encoding="utf-8") as f:
-                    json.dump(data, f, indent=4)
 
-        with open("src/data/curdata.json", encoding="utf-8") as f:
-            data = json.load(f)
-        balance = data["available_balance"]
-        for chan_id in data["orders"]:
-            for coin in data["orders"][chan_id].keys():
-                order = data["orders"][chan_id][coin]
-                profit = order["profit"]
-                balance += profit + order["money"] / LEVERAGE
-        data["balance"] = balance
-        with open("src/data/curdata.json", "w+", encoding="utf-8") as f:
+                with open("src/data/winrate.json", "w", encoding="utf-8") as f:
+                    json.dump(winrate, f, ensure_ascii=False, indent=4)
+                
+                data["available_balance"] += (money / leverage) + profit
+                logger.success(f'{order} was closed with {profit}$')
+                orders_to_delete.append((chan_id, coin))
+
+    if orders_to_delete:
+        for chan_id, coin in orders_to_delete:
+            if chan_id in data["orders"] and coin in data["orders"][chan_id]:
+                del data["orders"][chan_id][coin]
+
+    balance = data.get("available_balance", 0)
+    for chan_id in data.get("orders", {}):
+        for coin, order in data["orders"][chan_id].items():
+            profit = order.get("profit", 0)
+            balance += profit + order.get("money", 0) / LEVERAGE
+    data["balance"] = balance
+
+    try:
+        with open("src/data/curdata.json", "w", encoding="utf-8") as f:
             json.dump(data, f, indent=4)
-    except Exception as e:
-        logger.error(f"UPDATER: {e}")
+    except IOError as e:
+        logger.error(f"UPDATER: Could not write to curdata.json: {e}")
 
 
 def updater():
