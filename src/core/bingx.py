@@ -209,50 +209,47 @@ def update_orders():
 
 
 def updater():
-    while 1:
-        with open("src/data/channels.json", encoding="utf-8") as f:
-            channels = json.load(f)
-        update_orders()
-        with open("src/data/curdata.json", encoding="utf-8") as f:
-            data = json.load(f)
-        table_file = {"data": []}
-        for chan_id in data["orders"]:
-            for coin in data["orders"][chan_id]:
-                method = data["orders"][chan_id][coin]["method"]
-                money = round(data["orders"][chan_id][coin]["money"], 3)
-                order_price = data["orders"][chan_id][coin]["order_price"]
-                cur_price = data["orders"][chan_id][coin]["cur_price"]
-                profit = data["orders"][chan_id][coin]["profit"]
-                profit_perc = data["orders"][chan_id][coin]["profitPerc"]
-                table_file["data"].append(
-                    [
-                        channels[chan_id]["name"],
+    while True:
+        try:
+            update_orders()
+            
+            with open("src/data/curdata.json", "r", encoding="utf-8") as f:
+                data = json.load(f)
+            with open("src/data/channels.json", "r", encoding="utf-8") as f:
+                channels = json.load(f)
+            with open("src/data/winrate.json", "r", encoding="utf-8") as f:
+                winrate = json.load(f)
+
+            table_file = {"data": []}
+            for chan_id, order_data in data.get("orders", {}).items():
+                for coin, order in order_data.items():
+                    table_file["data"].append([
+                        channels.get(chan_id, {}).get("name", "Unknown"),
                         coin,
-                        method,
-                        money,
-                        order_price,
-                        cur_price,
-                        round(profit, 3),
-                        round(profit_perc, 3),
-                    ]
-                )
-        with open("src/data/winrate.json", encoding="utf-8") as f:
-            winrate = json.load(f)
-        wins = 0
-        loses = 0
-        for i in winrate:
-            wins += winrate[i]["win"]
-            loses += winrate[i]["lose"]
-        if wins + loses == 0:
-            winrate_global = 0
-        else:
-            winrate_global = round(wins / (wins + loses) * 100, 2)
-        table_file["data"].append([])
-        table_file["data"].append(
-            ["Available balance:", round(data["available_balance"], 2)]
-        )
-        table_file["data"].append(["Balance:", round(data["balance"], 2)])
-        table_file["data"].append(["Winrate:", round(winrate_global, 2)])
-        with open("src/data/table.json", "w+", encoding="utf-8") as f:
-            json.dump(table_file, f, indent=4)
+                        order.get("method"),
+                        round(order.get("money", 0), 3),
+                        order.get("order_price"),
+                        order.get("cur_price"),
+                        round(order.get("profit", 0), 3),
+                        round(order.get("profitPerc", 0), 3),
+                    ])
+
+            wins = sum(w.get("win", 0) for w in winrate.values())
+            loses = sum(w.get("lose", 0) for w in winrate.values())
+            winrate_global = round(wins / (wins + loses) * 100, 2) if (wins + loses) > 0 else 0
+
+            table_file["data"].append([])
+            table_file["data"].append(["Available balance:", round(data.get("available_balance", 0), 2)])
+            table_file["data"].append(["Balance:", round(data.get("balance", 0), 2)])
+            table_file["data"].append(["Winrate:", winrate_global])
+            
+            with open("src/data/table.json", "w", encoding="utf-8") as f:
+                json.dump(table_file, f, indent=4)
+
+        except (FileNotFoundError, json.JSONDecodeError, KeyError) as e:
+            logger.error(f"Error in updater loop: {e}")
+        except Exception as e:
+            logger.error(f"An unexpected error occurred in updater: {e}")
+        
         time.sleep(1)
+
