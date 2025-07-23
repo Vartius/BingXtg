@@ -62,8 +62,10 @@ def get_chats() -> List[int | str]:
 
 
 chats = get_chats()
-logger.success(f"Imported {len(chats)} chats")
-
+if chats:
+    logger.success(f"Imported {len(chats)} chats")
+else:
+    logger.warning("No chats were loaded. The bot will not listen to any channels.")
 
 @app.on_message(filters.chat(chats))
 async def channel_parser(user: Client, message: Message):
