@@ -1,6 +1,5 @@
 import json
 import time
-import requests
 
 from loguru import logger
 from bingx.api import BingxAPI
@@ -13,7 +12,6 @@ from config import (
     APIKEY,
     TP,
     SL,
-    APIURL,
 )
 
 
