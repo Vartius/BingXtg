@@ -183,19 +183,16 @@ async def channel_parser(client: Client, message: Message):
 
 
 async def app_suc():
-    await app.start()
-    while 1:
-        try:
-            await app.get_me()
-            break
-        except Exception as e:
-            logger.error(e)
-            logger.info("Sleeping for 5 sec")
-            time.sleep(5)
-            continue
-    logger.success("Telegram parser started")
-    await idle()
-    await app.stop()
+    try:
+        await app.start()
+        me = await app.get_me()
+        logger.success(f"Telegram parser started as {me.first_name}")
+        await idle()
+    except Exception as e:
+        logger.critical(f"A critical error occurred in the main Telegram loop: {e}")
+    finally:
+        if app.is_connected:
+            await app.stop()
 
 
 def start_parsing(is_simulating):
