@@ -74,17 +74,22 @@ def get_price(coin):
 
 
 def get_balance():
-    bingx = BingxAPI(APIKEY, SECRETKEY, timestamp="local")
-
-    res = bingx.get_perpetual_balance()["data"]["balance"]
-    print(res)
-    balance = res["balance"]
-    available_balance = res["availableMargin"]
-    print("Total balance:", balance)
-    print("Available balance:", available_balance)
-
-    return balance, available_balance
-
+    try:
+        bingx = BingxAPI(APIKEY, SECRETKEY, timestamp="local")
+        res = bingx.get_perpetual_balance()
+        if res and res.get('code') == 0:
+            balance_data = res['data']['balance']
+            balance = balance_data["balance"]
+            available_balance = balance_data["availableMargin"]
+            print("Total balance:", balance)
+            print("Available balance:", available_balance)
+            return balance, available_balance
+        else:
+            logger.error(f"Error fetching balance: {res.get('msg')}")
+            return None, None
+    except Exception as e:
+        logger.error(f"Exception in get_balance: {e}")
+        return None, None
 
 def set_order_bingx(coin, diraction, percent):
     bingx = BingxAPI(APIKEY, SECRETKEY, timestamp="local")
