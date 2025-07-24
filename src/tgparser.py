@@ -123,9 +123,10 @@ async def app_suc():
         await app.start()
         me = await app.get_me()
         logger.success(f"Telegram parser started as {me.first_name}")
+        all_chats_before = len(chats)
         await check_chats()
         logger.success(
-            f"Checked {len(chats)} chats for validity, {len(chats)} valid chats found."
+            f"Checked {all_chats_before} chats for validity, {len(chats)} valid chats found."
         )
         if not chats:
             logger.error("No valid chats found. Exiting.")
