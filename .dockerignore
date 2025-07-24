@@ -17,7 +17,6 @@ venv/
 .venv/
 
 # Project specific
-my_account.session
 logs.log
 src/data/curdata.json
 src/data/winrate.json
