@@ -9,3 +9,5 @@ data/curdata.json
 data/winrate.json
 data/table.json
 my_account.session-journal
+.vscode/
+.venv/
