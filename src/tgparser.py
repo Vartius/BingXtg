@@ -15,7 +15,7 @@ from src.command_handler import handle_command
 
 
 if os.getenv("CONTAINER") != "YES":
-    # Importing tkinter and tableviewer only if not in a container environment
+    # Importing tableviewer only if not in a container environment
     from src.tableviewer import startTable
 
 try:

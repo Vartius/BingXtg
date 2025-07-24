@@ -38,7 +38,7 @@ class TableViewer(QMainWindow):
 
         self.timer = QTimer()
         self.timer.timeout.connect(self.update_table_data)
-        self.timer.start(1000)
+        self.timer.start(100)
 
         self.update_table_data()
 
