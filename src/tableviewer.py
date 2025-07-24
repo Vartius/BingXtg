@@ -6,6 +6,10 @@ from PyQt6.QtWidgets import (
     QTableWidget,
     QTableWidgetItem,
     QHeaderView,
+    QWidget,
+    QVBoxLayout,
+    QLabel,
+    QHBoxLayout,
 )
 from PyQt6.QtCore import QTimer
 from loguru import logger
@@ -17,8 +21,21 @@ class TableViewer(QMainWindow):
         self.setWindowTitle("GUI Table Update")
         self.setGeometry(100, 100, 1000, 500)
 
+        main_widget = QWidget()
+        self.setCentralWidget(main_widget)
+        layout = QVBoxLayout(main_widget)
+
+        info_layout = QHBoxLayout()
+        self.balance_label = QLabel("Balance: N/A")
+        self.available_balance_label = QLabel("Available Balance: N/A")
+        self.winrate_label = QLabel("Winrate: N/A")
+        info_layout.addWidget(self.balance_label)
+        info_layout.addWidget(self.available_balance_label)
+        info_layout.addWidget(self.winrate_label)
+        layout.addLayout(info_layout)
+
         self.table_widget = QTableWidget()
-        self.setCentralWidget(self.table_widget)
+        layout.addWidget(self.table_widget)
 
         self.headers = [
             "Channel",
@@ -47,7 +64,17 @@ class TableViewer(QMainWindow):
             with open("data/table.json", "r", encoding="utf-8") as f:
                 table_data = json.load(f)
 
-            new_data = table_data.get("data", [])
+            balance = table_data.get("balance", "N/A")
+            available_balance = table_data.get("available_balance", "N/A")
+            winrate = table_data.get("winrate", "N/A")
+
+            self.balance_label.setText(f"Balance: {balance}")
+            self.available_balance_label.setText(
+                f"Available Balance: {available_balance}"
+            )
+            self.winrate_label.setText(f"Winrate: {winrate}")
+
+            new_data = table_data.get("orders", [])
             self.table_widget.setRowCount(len(new_data))
 
             for row_idx, row_data in enumerate(new_data):
