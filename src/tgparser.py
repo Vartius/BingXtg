@@ -15,7 +15,7 @@ from src.command_handler import handle_command
 
 
 if os.getenv("CONTAINER") != "YES":
-    # Importing tkinter and tableviewer only if not in a container environment
+    # Importing tableviewer only if not in a container environment
     from src.tableviewer import startTable
 
 try:
@@ -145,13 +145,11 @@ def start_parsing(is_simulating):
     global sim
     sim = bool(is_simulating)
     th(target=updater, daemon=True).start()
-    # stop the table viewer because of docker issue with tkinter
+    # stop the table viewer because of docker issue with qt6
     if os.getenv("CONTAINER") != "YES":
         # Start the table viewer only if not in a container environment
         logger.success("Starting Table View")
         th(target=startTable, daemon=True).start()  # type: ignore
     else:
-        logger.warning(
-            "Table View is disabled in container mode due to tkinter issues."
-        )
+        logger.warning("Table View is disabled in container mode due to qt6 issues.")
     app.run(app_suc())

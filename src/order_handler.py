@@ -157,14 +157,17 @@ def updater():
                 time.sleep(1)
                 continue
 
-            table_file = {"data": []}
-            if data is None or channels is None or winrate is None:
-                logger.error("Updater loop missing data, skipping iteration.")
+            orders = []
+            if not data:
+                logger.error("No data found, skipping order processing.")
                 time.sleep(1)
                 continue
             for chan_id, order_data in data.get("orders", {}).items():
                 for coin, order in order_data.items():
-                    table_file["data"].append(
+                    if not channels:
+                        logger.error("No channels found, skipping order processing.")
+                        continue
+                    orders.append(
                         [
                             channels.get(chan_id, {}).get("name", "Unknown"),
                             coin,
@@ -177,20 +180,23 @@ def updater():
                         ]
                     )
 
+            if not winrate:
+                logger.error("No winrate data found, skipping order processing.")
+                continue
             wins = sum(w.get("win", 0) for w in winrate.values())
             loses = sum(w.get("lose", 0) for w in winrate.values())
             winrate_global = (
                 round(wins / (wins + loses) * 100, 2) if (wins + loses) > 0 else 0
             )
 
-            table_file["data"].append([])
-            table_file["data"].append(
-                ["Available balance:", round(data.get("available_balance", 0), 2)]
-            )
-            table_file["data"].append(["Balance:", round(data.get("balance", 0), 2)])
-            table_file["data"].append(["Winrate:", winrate_global])
+            table_data = {
+                "orders": orders,
+                "available_balance": round(data.get("available_balance", 0), 2),
+                "balance": round(data.get("balance", 0), 2),
+                "winrate": winrate_global,
+            }
 
-            save_table(table_file)
+            save_table(table_data)
 
         except Exception as e:
             logger.error(f"An unexpected error occurred in updater: {e}", exc_info=True)
