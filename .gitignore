@@ -4,3 +4,5 @@ venv/
 __pycache__/
 *.log
 my_account.session
+src/data/channels.json
+src/data/curdata.json
