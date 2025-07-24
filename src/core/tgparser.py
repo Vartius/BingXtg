@@ -2,6 +2,7 @@ import os
 import json
 import random
 
+from tkinter import E
 from typing import List
 from threading import Thread as th
 
@@ -185,12 +186,45 @@ async def channel_parser(client: Client, message: Message):
         logger.error(f"Error processing order for {coin}: {e}")
 
 
+async def check_chats():
+    try:
+        with open("src/data/channels.json", "r", encoding="utf-8") as f:
+            channels = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError) as e:
+        logger.error(f"Could not read channels.json: {e}")
+        return
+
+    for chat_id in chats.copy():
+        if str(chat_id) not in channels:
+            logger.warning(f"Chat ID {chat_id} not found in channels.json. Removing from list.")
+            chats.remove(chat_id)
+            continue
+
+        try:
+            chat = await app.get_chat(chat_id)
+            if chat.type != "channel":
+                logger.warning(f"Chat ID {chat_id} is not a channel. Removing from list.")
+                chats.remove(chat_id)
+        except errors.ChannelInvalid as e:
+            logger.error(f"Chat ID {chat_id} is invalid: {e}")
+            chats.remove(chat_id)
+        except Exception as e:
+            logger.error(f"Error checking chat {chat_id}: {e}")
+
 
 async def app_suc():
     try:
         await app.start()
         me = await app.get_me()
         logger.success(f"Telegram parser started as {me.first_name}")
+        await check_chats()
+        logger.success(f"Checked {len(chats)} chats for validity, {len(chats)} valid chats found.")
+        if not chats:
+            logger.error("No valid chats found. Exiting.")
+            exit(1)
+        else:
+            # list valid chats
+            logger.info(f"Valid chats: {', '.join(str(chat) for chat in chats)}")
         await idle()
     except Exception as e:
         logger.critical(f"A critical error occurred in the main Telegram loop: {e}")
