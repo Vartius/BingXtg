@@ -44,7 +44,7 @@ async def handle_chats_check(client: Client, message: Message, chats: list):
         try:
             chat = await client.get_chat(chat_id)
             titles.append(chat.title or f"Chat {chat_id}")
-        except errors.PyrogramError as e:
+        except errors.exceptions as e:
             logger.error(f"Could not get info for chat {chat_id}: {e}")
             titles.append(f"Error fetching chat {chat_id}")
     await message.reply("\n".join(titles))
@@ -73,7 +73,7 @@ async def handle_stop(message: Message):
     os._exit(0)
 
 
-async def handle_add_test_orders(message: Message, sim: int):
+async def handle_add_test_orders(message: Message, sim: bool):
     chat_id_str = str(message.chat.id)
     for coin in ["CRV", "UNI", "BTC", "ETH", "XRP", "STORJ", "AAVE"]:
         data = set_order(chat_id_str, coin, random.choice(["long", "short"]), sim)

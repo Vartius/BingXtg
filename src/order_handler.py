@@ -158,6 +158,10 @@ def updater():
                 continue
 
             table_file = {"data": []}
+            if data is None or channels is None or winrate is None:
+                logger.error("Updater loop missing data, skipping iteration.")
+                time.sleep(1)
+                continue
             for chan_id, order_data in data.get("orders", {}).items():
                 for coin, order in order_data.items():
                     table_file["data"].append(
