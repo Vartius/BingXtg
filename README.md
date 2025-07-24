@@ -8,7 +8,7 @@ This is a trading bot designed to automate trading strategies using Telegram cha
 - **Trading Automation**: Automatically places and manages trading orders on BingX exchange.
 - **Simulation Mode**: Allows testing strategies without real money.
 - **Real-Time Data**: Updates orders and balance in real-time.
-- **GUI Interface**: Displays current trades, balance, and win rate using a Tkinter-based table.
+- **GUI Interface**: Displays current trades, balance, and win rate using a PyQt6-based table.
 
 ## Requirements
 
