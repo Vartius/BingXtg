@@ -1,98 +1,117 @@
+import sys
 import json
-import os
-
 from loguru import logger
-
-from src.tgparser import start_parsing
+from src.tg_parser import start_telegram_parser
 from src.data_handler import (
-    get_curdata,
-    save_curdata,
+    get_state,
+    save_state,
+    get_channels,
     get_winrate,
     save_winrate,
-    get_channels,
 )
 
+# Safely import configuration
 try:
     from config import START_BALANCE
 except ImportError:
-    logger.error("START_BALANCE is not defined in config.py. Please set it.")
-    exit(1)
+    logger.critical(
+        "Could not import `config.py`. Please rename `config.example.py` to `config.py` and fill it out."
+    )
+    sys.exit(1)
 
 
-def renew_data(data):
-    data = {
+def initialize_new_state():
+    """Initializes and returns a fresh state dictionary for a new session."""
+    logger.info("Initializing a new trading session.")
+    return {
         "balance": START_BALANCE,
         "available_balance": START_BALANCE,
         "winrate": 0,
         "orders": {},
     }
-    return data
 
 
-def continue_data(data):
-    data["available_balance"] = data["balance"]
-    data["orders"] = {}
-    with open("config.py", "r", encoding="utf-8") as f:
-        conf = f.read().replace(str(START_BALANCE), str(data["balance"]))
-    with open("config.py", "w+", encoding="utf-8") as f:
-        f.write(conf)
-    return data
+def continue_existing_state(state):
+    """Prepares an existing state for a continued session."""
+    logger.info(f"Continuing existing session with balance: {state['balance']:.2f}")
+    state["available_balance"] = state["balance"]
+    state["orders"] = {}  # Clear stale orders from previous run
+    return state
 
 
-def simulate(sim):
-    data = get_curdata()
-    if data is None:
-        logger.error("curdata.json not found or invalid, creating a new one")
-        with open("data/curdata.json", "w+", encoding="utf-8") as f:
-            json.dump({}, f, indent=4)
-        data = {}
-
+def setup_session(is_simulation: bool):
+    """
+    Sets up the user session by either loading existing data or creating a new session.
+    It also ensures all necessary data files are present and valid.
+    """
+    state = get_state()
     channels = get_channels()
+    winrate = get_winrate()
+
+    # Validate required channels configuration
     if channels is None:
         logger.critical(
-            "channels.json not found or invalid, please create it, example in data/channels.json.example"
+            "`channels.json` not found or invalid. Please create it. See README for an example."
         )
-        assert False, "channels.json not found or invalid"
+        sys.exit(1)
 
-    winrate = get_winrate()
+    # Initialize winrate file if it doesn't exist
     if winrate is None:
-        logger.error("winrate.json not found or invalid, creating a new one")
-        with open("data/winrate.json", "w+", encoding="utf-8") as f:
-            json.dump({}, f, indent=4)
+        logger.warning("`winrate.json` not found, creating a new one.")
         winrate = {}
 
-    if "balance" in data:
-        CHOICE = input("Found previous data, do you want to renew it? Y/N: ")
+    # Decide whether to start a new session or continue
+    if state and "balance" in state:
+        choice = input(
+            "Found previous session data. Do you want to start a new session? (Y/N): "
+        ).lower()
+        if choice == "y":
+            state = initialize_new_state()
+        else:
+            state = continue_existing_state(state)
     else:
-        CHOICE = "y"
+        state = initialize_new_state()
 
-    if CHOICE.lower() == "y":
-        data = renew_data(data)
-    else:
-        data = continue_data(data)
+    # Ensure winrate and order structures are initialized for each channel
+    for channel_id in channels:
+        if channel_id not in winrate:
+            winrate[channel_id] = {
+                "name": channels[channel_id].get("name", "Unknown"),
+                "win": 0,
+                "lose": 0,
+            }
+        if "orders" not in state:
+            state["orders"] = {}
+        state["orders"][channel_id] = {}
 
-    for i in channels:
-        if i not in winrate:
-            winrate[i] = {"name": channels[i]["name"], "win": 0, "lose": 0}
-        if "orders" not in data:
-            data["orders"] = {}
-        data["orders"][i] = {}
-
-    save_curdata(data)
+    save_state(state)
     save_winrate(winrate)
 
-    logger.info("files checked")
-    start_parsing(sim)
+    logger.info("Session setup complete. Starting bot...")
+    start_telegram_parser(is_simulation)
 
 
-logger.add("logs.log")
+def main():
+    """Main entry point for the application."""
+    logger.add("logs.log", rotation="10 MB", compression="zip")
+
+    print("\n--- Trading Bot Menu ---\n")
+    print("  1: Start Live Trading")
+    print("  2: Start Simulation")
+    print("  0: Exit\n")
+
+    choice = input("Select an option: ")
+
+    if choice == "1":
+        simulate = False
+        setup_session(is_simulation=simulate)
+    elif choice == "2":
+        simulate = True
+        setup_session(is_simulation=simulate)
+    else:
+        logger.info("Exiting application.")
+        sys.exit(0)
 
 
-print("Menu\n\n1: Start trading\n2: Start simulating\n0/(any key): Exit")
-CHOICE = input("Input: ")
-if CHOICE == "2":
-    simulate(1)
-elif CHOICE == "1":
-    simulate(0)
-else:
-    os._exit(0)
+if __name__ == "__main__":
+    main()

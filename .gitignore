@@ -3,11 +3,11 @@ config.py
 venv/
 __pycache__/
 *.log
-my_account.session
+*.session
 data/channels.json
 data/curdata.json
 data/winrate.json
 data/table.json
-my_account.session-journal
+*.session-journal
 .vscode/
 .venv/

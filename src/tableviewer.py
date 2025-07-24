@@ -1,105 +1,140 @@
-import json
+"""
+This module provides a real-time GUI display for the trading bot's activity
+using the PyQt6 framework.
+"""
+
 import sys
+import json
 from PyQt6.QtWidgets import (
     QApplication,
     QMainWindow,
+    QWidget,
+    QVBoxLayout,
+    QHBoxLayout,
     QTableWidget,
     QTableWidgetItem,
     QHeaderView,
-    QWidget,
-    QVBoxLayout,
     QLabel,
-    QHBoxLayout,
 )
 from PyQt6.QtCore import QTimer
 from loguru import logger
 
 
 class TableViewer(QMainWindow):
+    """
+    The main window for the application, displaying real-time trading data in a table
+    and summary labels for balance and winrate.
+    """
+
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("GUI Table Update")
-        self.setGeometry(100, 100, 1000, 500)
+        self.setWindowTitle("Trading Bot Dashboard")
+        self.setGeometry(100, 100, 1200, 600)
 
-        main_widget = QWidget()
-        self.setCentralWidget(main_widget)
-        layout = QVBoxLayout(main_widget)
+        # Main layout
+        central_widget = QWidget()
+        self.setCentralWidget(central_widget)
+        main_layout = QVBoxLayout(central_widget)
 
+        # Info bar
+        info_layout = self._create_info_layout()
+        main_layout.addLayout(info_layout)
+
+        # Table
+        self.table_widget = self._create_table_widget()
+        main_layout.addWidget(self.table_widget)
+
+        # Setup a timer to refresh data periodically
+        self.timer = QTimer()
+        self.timer.timeout.connect(self.update_data)
+        self.timer.start(1000)  # Refresh every 1 second
+
+        logger.success("GUI Initialized.")
+
+    def _create_info_layout(self) -> QHBoxLayout:
+        """Creates the top layout with labels for balance and winrate."""
         info_layout = QHBoxLayout()
         self.balance_label = QLabel("Balance: N/A")
         self.available_balance_label = QLabel("Available Balance: N/A")
         self.winrate_label = QLabel("Winrate: N/A")
-        info_layout.addWidget(self.balance_label)
-        info_layout.addWidget(self.available_balance_label)
-        info_layout.addWidget(self.winrate_label)
-        layout.addLayout(info_layout)
 
-        self.table_widget = QTableWidget()
-        layout.addWidget(self.table_widget)
+        # Apply some styling
+        for label in [
+            self.balance_label,
+            self.available_balance_label,
+            self.winrate_label,
+        ]:
+            label.setStyleSheet("font-size: 14px; padding: 5px;")
+            info_layout.addWidget(label)
 
-        self.headers = [
+        return info_layout
+
+    def _create_table_widget(self) -> QTableWidget:
+        """Creates and configures the main table for displaying orders."""
+        table = QTableWidget()
+        headers = [
             "Channel",
             "Coin",
-            "Direction",
-            "Deposit*L",
-            "Order Price",
+            "Side",
+            "Margin ($)",
+            "Entry Price",
             "Current Price",
-            "Profit",
-            "Percent",
+            "PnL ($)",
+            "PnL (%)",
         ]
-        self.table_widget.setColumnCount(len(self.headers))
-        self.table_widget.setHorizontalHeaderLabels(self.headers)
-        header = self.table_widget.horizontalHeader()
-        if header:
-            header.setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        table.setColumnCount(len(headers))
+        table.setHorizontalHeaderLabels(headers)
+        table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        table.setEditTriggers(
+            QTableWidget.EditTrigger.NoEditTriggers
+        )  # Make table read-only
+        return table
 
-        self.timer = QTimer()
-        self.timer.timeout.connect(self.update_table_data)
-        self.timer.start(100)
-
-        self.update_table_data()
-
-    def update_table_data(self):
+    def update_data(self):
+        """
+        Loads data from table.json and updates the UI elements.
+        This method is called by the QTimer.
+        """
         try:
             with open("data/table.json", "r", encoding="utf-8") as f:
-                table_data = json.load(f)
+                data = json.load(f)
 
-            balance = table_data.get("balance", "N/A")
-            available_balance = table_data.get("available_balance", "N/A")
-            winrate = table_data.get("winrate", "N/A")
-
-            self.balance_label.setText(f"Balance: {balance}")
+            # Update info labels
+            self.balance_label.setText(f"<b>Balance:</b> ${data.get('balance', 0):.2f}")
             self.available_balance_label.setText(
-                f"Available Balance: {available_balance}"
+                f"<b>Available:</b> ${data.get('available_balance', 0):.2f}"
             )
-            self.winrate_label.setText(f"Winrate: {winrate}")
+            self.winrate_label.setText(f"<b>Winrate:</b> {data.get('winrate', 0)}%")
 
-            new_data = table_data.get("orders", [])
-            self.table_widget.setRowCount(len(new_data))
-
-            for row_idx, row_data in enumerate(new_data):
+            # Update table content
+            orders = data.get("orders", [])
+            self.table_widget.setRowCount(len(orders))
+            for row_idx, row_data in enumerate(orders):
                 for col_idx, cell_data in enumerate(row_data):
                     self.table_widget.setItem(
                         row_idx, col_idx, QTableWidgetItem(str(cell_data))
                     )
-            # logger.info("Table data updated successfully.")
 
         except FileNotFoundError:
-            logger.warning("table.json not found. Waiting for it to be created.")
+            # This is expected if the updater hasn't run yet
+            pass
         except json.JSONDecodeError:
-            logger.error(
-                "Error decoding table.json. The file might be corrupted or empty."
+            logger.warning(
+                "Could not decode table.json. It may be empty or being written to."
             )
         except Exception as e:
-            logger.error(f"An error occurred in update_table_data: {e}")
+            logger.error(f"An error occurred while updating GUI data: {e}")
 
 
-def startTable():
+def start_gui():
+    """
+    Initializes and runs the PyQt6 application. This should be called
+    from a separate thread to not block the main application logic.
+    """
     try:
         app = QApplication(sys.argv)
         viewer = TableViewer()
         viewer.show()
-        logger.success("Table View started")
         sys.exit(app.exec())
     except Exception as e:
-        logger.error(f"Failed to start Table View: {e}")
+        logger.error(f"Failed to start the GUI: {e}")
