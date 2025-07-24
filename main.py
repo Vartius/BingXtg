@@ -3,7 +3,7 @@ import os
 
 from loguru import logger
 
-from src.core.tgparser import start_parsing
+from src.tgparser import start_parsing
 try:
     from config import START_BALANCE
 except ImportError:
@@ -12,27 +12,27 @@ except ImportError:
 
 def simulate(sim):
     try:
-        with open("src/data/curdata.json", encoding="utf-8") as f:
+        with open("data/curdata.json", encoding="utf-8") as f:
             data = json.load(f)
     except (FileNotFoundError, json.JSONDecodeError):
         logger.error("curdata.json not found or invalid, creating a new one")
-        with open("src/data/curdata.json", "w+", encoding="utf-8") as f:
+        with open("data/curdata.json", "w+", encoding="utf-8") as f:
             json.dump({}, f, indent=4)
         data = {}
 
     try:
-        with open("src/data/channels.json", encoding="utf-8") as f:
+        with open("data/channels.json", encoding="utf-8") as f:
             channels = json.load(f)
     except (FileNotFoundError, json.JSONDecodeError):
         logger.critical("channels.json not found or invalid, please create it, example in data/channels.json.example")
         assert False, "channels.json not found or invalid"
 
     try:
-        with open("src/data/winrate.json", encoding="utf-8") as f:
+        with open("data/winrate.json", encoding="utf-8") as f:
             winrate = json.load(f)
     except (FileNotFoundError, json.JSONDecodeError):
         logger.error("winrate.json not found or invalid, creating a new one")
-        with open("src/data/winrate.json", "w+", encoding="utf-8") as f:
+        with open("data/winrate.json", "w+", encoding="utf-8") as f:
             json.dump({}, f, indent=4)
         winrate = {}
 
@@ -65,9 +65,9 @@ def simulate(sim):
             winrate[i] = {"name": channels[i]["name"], "win": 0, "lose": 0}
         data["orders"][i] = {}
 
-    with open("src/data/curdata.json", "w+", encoding="utf-8") as f:
+    with open("data/curdata.json", "w+", encoding="utf-8") as f:
         json.dump(data, f, indent=4)
-    with open("src/data/winrate.json", "w+", encoding="utf-8") as f:
+    with open("data/winrate.json", "w+", encoding="utf-8") as f:
         json.dump(winrate, f, indent=4)
 
     logger.info("files checked")

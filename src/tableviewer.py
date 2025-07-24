@@ -7,7 +7,7 @@ from loguru import logger
 
 def update_table_data():
     try:
-        with open("src/data/table.json", "r", encoding="utf-8") as f:
+        with open("data/table.json", "r", encoding="utf-8") as f:
             table = json.load(f)
         
         new_data = table.get("data", [])

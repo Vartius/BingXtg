@@ -22,9 +22,9 @@ except ImportError:
 
 def set_order(chan_id, coin, method, sim=True):
     try:
-        with open("src/data/curdata.json", "r", encoding="utf-8") as f:
+        with open("data/curdata.json", "r", encoding="utf-8") as f:
             data = json.load(f)
-        with open("src/data/winrate.json", "r", encoding="utf-8") as f:
+        with open("data/winrate.json", "r", encoding="utf-8") as f:
             winrate = json.load(f)
         logger.success(f"{chan_id} got winrate and curdata")
     except (FileNotFoundError, json.JSONDecodeError) as e:
@@ -140,7 +140,7 @@ def set_order_bingx(coin, diraction, percent):
 
 def update_orders():
     try:
-        with open("src/data/curdata.json", "r", encoding="utf-8") as f:
+        with open("data/curdata.json", "r", encoding="utf-8") as f:
             data = json.load(f)
     except (FileNotFoundError, json.JSONDecodeError) as e:
         logger.error(f"UPDATER: Could not read curdata.json: {e}")
@@ -174,7 +174,7 @@ def update_orders():
 
             if profit_perc >= TP or profit_perc <= SL:
                 try:
-                    with open("src/data/winrate.json", "r", encoding="utf-8") as f:
+                    with open("data/winrate.json", "r", encoding="utf-8") as f:
                         winrate = json.load(f)
                 except (FileNotFoundError, json.JSONDecodeError):
                     winrate = {}
@@ -187,7 +187,7 @@ def update_orders():
                 else:
                     winrate[chan_id]["lose"] += 1
 
-                with open("src/data/winrate.json", "w", encoding="utf-8") as f:
+                with open("data/winrate.json", "w", encoding="utf-8") as f:
                     json.dump(winrate, f, ensure_ascii=False, indent=4)
                 
                 data["available_balance"] += (money / leverage) + profit
@@ -207,7 +207,7 @@ def update_orders():
     data["balance"] = balance
 
     try:
-        with open("src/data/curdata.json", "w", encoding="utf-8") as f:
+        with open("data/curdata.json", "w", encoding="utf-8") as f:
             json.dump(data, f, indent=4)
     except IOError as e:
         logger.error(f"UPDATER: Could not write to curdata.json: {e}")
@@ -218,11 +218,11 @@ def updater():
         try:
             update_orders()
             
-            with open("src/data/curdata.json", "r", encoding="utf-8") as f:
+            with open("data/curdata.json", "r", encoding="utf-8") as f:
                 data = json.load(f)
-            with open("src/data/channels.json", "r", encoding="utf-8") as f:
+            with open("data/channels.json", "r", encoding="utf-8") as f:
                 channels = json.load(f)
-            with open("src/data/winrate.json", "r", encoding="utf-8") as f:
+            with open("data/winrate.json", "r", encoding="utf-8") as f:
                 winrate = json.load(f)
 
             table_file = {"data": []}
@@ -248,7 +248,7 @@ def updater():
             table_file["data"].append(["Balance:", round(data.get("balance", 0), 2)])
             table_file["data"].append(["Winrate:", winrate_global])
             
-            with open("src/data/table.json", "w", encoding="utf-8") as f:
+            with open("data/table.json", "w", encoding="utf-8") as f:
                 json.dump(table_file, f, indent=4)
 
         except (FileNotFoundError, json.JSONDecodeError, KeyError) as e:

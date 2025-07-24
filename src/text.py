@@ -5,7 +5,7 @@ from loguru import logger
 
 def textHandler(text, chanId):
     try:
-        with open("src/data/channels.json", "r", encoding="utf-8") as f:
+        with open("data/channels.json", "r", encoding="utf-8") as f:
             channels = json.load(f)
         
         channel_info = channels[chanId]

@@ -2,7 +2,6 @@ import os
 import json
 import random
 
-from tkinter import E
 from typing import List
 from threading import Thread as th
 
@@ -14,11 +13,11 @@ from pyrogram.client import Client
 from pyrogram import filters, errors
 from pyrogram.sync import idle
 from pyrogram.types import Message
-from src.core.text import textHandler
-from src.core.bingx import set_order, updater
+from src.text import textHandler
+from src.bingx import set_order, updater
 if os.getenv("CONTAINER") != "YES":
     # Importing tkinter and tableviewer only if not in a container environment
-    from src.core.tableviewer import startTable
+    from src.tableviewer import startTable
 
 try:
     from config import api_id, api_hash
@@ -58,7 +57,7 @@ def short_long(val):
 
 def get_chats() -> List[int | str]:
     try:
-        with open("src/data/channels.json", "r", encoding="utf-8") as f:
+        with open("data/channels.json", "r", encoding="utf-8") as f:
             channels = json.load(f)
         return [int(channel) for channel in channels]
     except (FileNotFoundError, json.JSONDecodeError, ValueError) as e:
@@ -100,7 +99,7 @@ async def channel_parser(client: Client, message: Message):
         
         elif command == ".chats":
             try:
-                with open("src/data/channels.json", "r", encoding="utf-8") as f:
+                with open("data/channels.json", "r", encoding="utf-8") as f:
                     channels = json.load(f)
                 response = "\n".join(f"{ch_data.get('name', 'N/A')} {ch_id}" for ch_id, ch_data in channels.items())
                 await message.reply(response)
@@ -118,7 +117,7 @@ async def channel_parser(client: Client, message: Message):
                 data = set_order(chat_id_str, coin, random.choice(["long", "short"]), sim)
                 if data:
                     try:
-                        with open("src/data/curdata.json", "w", encoding="utf-8") as f:
+                        with open("data/curdata.json", "w", encoding="utf-8") as f:
                             json.dump(data, f, indent=4)
                     except IOError as e:
                         logger.error(f"Failed to write test order data: {e}")
@@ -127,7 +126,7 @@ async def channel_parser(client: Client, message: Message):
         elif command == ".getdata":
             logger.info(f"({chat_id_str}) Sending all data.")
             try:
-                with open("src/data/table.json", "r", encoding="utf-8") as f:
+                with open("data/table.json", "r", encoding="utf-8") as f:
                     table = json.load(f)
                 
                 headers = [ "Channel", "Coin", "Diraction", "Deposit*L", "Order Price", "Current Price", "Profit", "Procent" ]
@@ -171,7 +170,7 @@ async def channel_parser(client: Client, message: Message):
     logger.success(f"{chat_title}({chat_id_str}) {log_msg}")
 
     try:
-        with open("src/data/curdata.json", "r+", encoding="utf-8") as f:
+        with open("data/curdata.json", "r+", encoding="utf-8") as f:
             data = json.load(f)
             if coin not in data.get("orders", {}).get(chat_id_str, {}):
                 new_data = set_order(chat_id_str, coin, method)
@@ -188,7 +187,7 @@ async def channel_parser(client: Client, message: Message):
 
 async def check_chats():
     try:
-        with open("src/data/channels.json", "r", encoding="utf-8") as f:
+        with open("data/channels.json", "r", encoding="utf-8") as f:
             channels = json.load(f)
     except (FileNotFoundError, json.JSONDecodeError) as e:
         logger.error(f"Could not read channels.json: {e}")
