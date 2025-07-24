@@ -14,8 +14,8 @@ def simulate(sim):
     try:
         with open("src/data/curdata.json", encoding="utf-8") as f:
             data = json.load(f)
-    except FileNotFoundError:
-        logger.error("curdata.json not found, creating a new one")
+    except (FileNotFoundError, json.JSONDecodeError):
+        logger.error("curdata.json not found or invalid, creating a new one")
         with open("src/data/curdata.json", "w+", encoding="utf-8") as f:
             json.dump({}, f, indent=4)
         data = {}
@@ -23,15 +23,15 @@ def simulate(sim):
     try:
         with open("src/data/channels.json", encoding="utf-8") as f:
             channels = json.load(f)
-    except FileNotFoundError:
-        logger.critical("channels.json not found, please create it, example in data/channels.json.example")
-        assert False, "channels.json not found"
+    except (FileNotFoundError, json.JSONDecodeError):
+        logger.critical("channels.json not found or invalid, please create it, example in data/channels.json.example")
+        assert False, "channels.json not found or invalid"
 
     try:
         with open("src/data/winrate.json", encoding="utf-8") as f:
             winrate = json.load(f)
-    except FileNotFoundError:
-        logger.error("winrate.json not found, creating a new one")
+    except (FileNotFoundError, json.JSONDecodeError):
+        logger.error("winrate.json not found or invalid, creating a new one")
         with open("src/data/winrate.json", "w+", encoding="utf-8") as f:
             json.dump({}, f, indent=4)
         winrate = {}

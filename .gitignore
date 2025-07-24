@@ -4,3 +4,7 @@ venv/
 __pycache__/
 *.log
 my_account.session
+src/data/channels.json
+src/data/curdata.json
+src/data/winrate.json
+my_account.session-journal

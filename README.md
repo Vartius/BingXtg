@@ -12,10 +12,12 @@ This is a trading bot designed to automate trading strategies using Telegram cha
 
 ## Requirements
 
-- Python 3.8+
+- Python 3.11+
 - Required Python packages listed in `requirements.txt`
 - BingX API credentials
 - Telegram API credentials
+- [uv](https://github.com/astral-sh/uv) (optional, for faster package management)
+- [Docker](https://www.docker.com/) (optional, for containerized execution)
 
 ## Setup
 
@@ -28,6 +30,8 @@ This is a trading bot designed to automate trading strategies using Telegram cha
 2. **Install the required packages**:
     ```bash
     pip install -r requirements.txt
+    # or using uv
+    uv sync
     ```
 
 3. **Configure the bot**:
@@ -73,12 +77,28 @@ This is a trading bot designed to automate trading strategies using Telegram cha
 1. **Start the bot**:
     ```bash
     python main.py
+    # or using uv
+    uv run main.py
     ```
 
 2. **Choose an option**:
     - `1`: Start live trading
     - `2`: Start simulation
     - `0` or any other key: Exit
+
+## Docker Usage
+
+You can also run the bot using Docker. The provided `Dockerfile` sets up the environment and runs the bot.
+
+1.  **Build the Docker image**:
+    ```bash
+    docker build -t trading-bot .
+    ```
+
+2.  **Run the Docker container**:
+    ```bash
+    docker run -it --rm trading-bot
+    ```
 
 ## Files Overview
 

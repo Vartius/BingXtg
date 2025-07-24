@@ -15,5 +15,4 @@ dependencies = [
     "pyrogram==2.0.106",
     "requests==2.31.0",
     "tgcrypto>=1.2.5",
-    "ttkthemes==3.2.2",
 ]

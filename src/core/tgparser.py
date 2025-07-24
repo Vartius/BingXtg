@@ -15,7 +15,9 @@ from pyrogram.sync import idle
 from pyrogram.types import Message
 from src.core.text import textHandler
 from src.core.bingx import set_order, updater
-from src.core.tableviewer import startTable
+if os.getenv("CONTAINER") != "YES":
+    # Importing tkinter and tableviewer only if not in a container environment
+    from src.core.tableviewer import startTable
 
 try:
     from config import api_id, api_hash
@@ -201,5 +203,11 @@ def start_parsing(is_simulating):
     global sim
     sim = is_simulating
     th(target=updater, daemon=True).start()
-    th(target=startTable, daemon=True).start()
+    # stop the table viewer because of docker issue with tkinter
+    if os.getenv("CONTAINER") != "YES":
+        # Start the table viewer only if not in a container environment
+        logger.success("Starting Table View")
+        th(target=startTable, daemon=True).start() # type: ignore
+    else:
+        logger.warning("Table View is disabled in container mode due to tkinter issues.")
     app.run(app_suc())
