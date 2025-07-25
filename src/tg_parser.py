@@ -60,7 +60,7 @@ logger.info(f"Loaded {len(CHAT_IDS)} channels from configuration.")
 
 
 # --- Message Handlers ---
-@app.on_message(filters.chat(CHAT_IDS) | filters.me)
+@app.on_message(filters.chat(CHAT_IDS))
 async def message_handler(client: Client, message: Message):
     """
     Primary message handler that listens to configured channels and private messages.
@@ -120,8 +120,7 @@ async def main_telegram_loop():
         print(CHAT_IDS)
         for chat_id in CHAT_IDS:
             try:
-                member = await app.get_chat_member(chat_id, "me")
-                print(member.status)
+                await app.get_chat(chat_id)
                 valid_chats.append(chat_id)
             except errors.ChannelInvalid:
                 logger.error(f"Chat {chat_id} is invalid.")
