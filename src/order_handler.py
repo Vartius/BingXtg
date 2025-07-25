@@ -1,204 +1,210 @@
 """
-This module handles order management.
+This module contains the core logic for order management, including placing new orders,
+updating their status, and handling the main update loop.
 """
 
 import time
+import sys
 from loguru import logger
-
 from src.bingx_api import get_price, set_order_bingx
 from src.data_handler import (
-    get_curdata,
-    save_curdata,
+    get_state,
+    save_state,
     get_winrate,
     save_winrate,
     get_channels,
     save_table,
 )
 
+# --- Configuration Import ---
 try:
-    from config import (
-        MIN_ORDERS_TO_HIGH,
-        MAX_PERCENT,
-        LEVERAGE,
-        TP,
-        SL,
-    )
+    from config import MIN_ORDERS_TO_HIGH, MAX_PERCENT, LEVERAGE, TP, SL
 except ImportError:
-    logger.error(
-        "Configuration parameters are not set in config.py. Please define them."
+    logger.critical(
+        "`config.py` is missing or incomplete. Please configure it before running."
     )
-    exit(1)
+    sys.exit(1)
 
 
-def set_order(chan_id, coin, method, sim=True):
-    """Places a new order."""
-    data = get_curdata()
-    winrate = get_winrate()
-    if data is None or winrate is None:
-        logger.error(f"Could not get data for setting order for {chan_id}")
-        return None
+def place_order(channel_id: str, coin: str, side: str, is_simulation: bool) -> bool:
+    """
+    Places a new order based on a signal, either in simulation or live mode.
 
-    logger.success(f"{chan_id} got winrate and curdata")
+    Args:
+        channel_id: The ID of the channel that sent the signal.
+        coin: The coin ticker (e.g., "BTC").
+        side: The order side ("long" or "short").
+        is_simulation: If True, simulates the trade; otherwise, places a real order.
 
-    chan_winrate = winrate.get(chan_id, {"win": 0, "lose": 0})
+    Returns:
+        True if the order was successfully placed/simulated, False otherwise.
+    """
+    state = get_state()
+    winrate_data = get_winrate()
+    if not state or not winrate_data:
+        logger.error(
+            f"Could not get state or winrate data to place order for {channel_id}."
+        )
+        return False
 
-    if (chan_winrate["lose"] + chan_winrate["win"]) <= MIN_ORDERS_TO_HIGH:
-        k = 0
-    else:
-        k = chan_winrate["win"] / (chan_winrate["lose"] + chan_winrate["win"])
-        logger.info(f"IT SHOULD BE TRADING {k} {not sim}")
+    # Calculate winrate factor for dynamic position sizing
+    channel_winrate = winrate_data.get(channel_id, {"win": 0, "lose": 0})
+    total_trades = channel_winrate["win"] + channel_winrate["lose"]
 
-    money = data.get("available_balance", 0) * (0.01 + MAX_PERCENT * k)
+    winrate_factor = 0
+    if total_trades > MIN_ORDERS_TO_HIGH:
+        winrate_factor = channel_winrate["win"] / total_trades
 
-    if k != 0 and not sim:
-        logger.info(f"IT SHOULD BE TRADING OKAY {k} {not sim}")
-        set_order_bingx(coin, method, 0.01 + MAX_PERCENT * k)
+    # Base investment is 1% of balance, with a bonus up to MAX_PERCENT based on winrate
+    investment_percent = 0.01 + (MAX_PERCENT - 0.01) * winrate_factor
+    margin = state.get("available_balance", 0) * investment_percent
 
-    data["available_balance"] -= money
+    # In live mode, place the order via the API
+    if not is_simulation:
+        if not set_order_bingx(coin, side, investment_percent):
+            logger.error(f"Failed to place live order for {coin} {side}.")
+            return False
+
+    # For both live and simulation, update the state file
     price = get_price(coin)
     if price is None:
-        logger.warning(f"{coin} price = None")
-        data["available_balance"] += money
-        return data
+        logger.warning(f"Could not fetch price for {coin}. Order placement aborted.")
+        return False
 
-    if chan_id not in data["orders"]:
-        data["orders"][chan_id] = {}
-
-    data["orders"][chan_id][coin] = {
-        "method": method,
-        "money": money * LEVERAGE,
-        "order_price": price,
-        "cur_price": price,
-        "profit": 0,
-        "profitPerc": 0,
+    state["available_balance"] -= margin
+    order_details = {
+        "side": side,
+        "margin": margin,
+        "entry_price": price,
+        "current_price": price,
+        "pnl": 0.0,
+        "pnl_percent": 0.0,
     }
-    save_curdata(data)
-    return data
+
+    if channel_id not in state["orders"]:
+        state["orders"][channel_id] = {}
+    state["orders"][channel_id][coin] = order_details
+
+    return save_state(state)
 
 
-def update_orders():
-    """Updates existing orders."""
-    data = get_curdata()
-    if data is None:
-        logger.error("UPDATER: Could not read curdata.json")
-        return
-
-    orders_to_delete = []
-
-    for chan_id in data.get("orders", {}):
-        for coin, order in data["orders"][chan_id].items():
+def _update_open_orders(state: dict, winrate_data: dict) -> tuple[dict, dict]:
+    """Helper function to process and update all open orders."""
+    orders_to_close = []
+    for channel_id, orders in state.get("orders", {}).items():
+        for coin, order in orders.items():
             price = get_price(coin)
             if price is None:
+                continue  # Skip update if price is unavailable
+
+            order["current_price"] = price
+            entry_price = order.get("entry_price", 0)
+            if entry_price == 0:
+                continue
+
+            # Calculate PnL
+            if order.get("side") == "long":
+                pnl_percent = (price / entry_price - 1) * LEVERAGE
+            else:  # Short
+                pnl_percent = (entry_price / price - 1) * LEVERAGE
+
+            order["pnl"] = order["margin"] * pnl_percent
+            order["pnl_percent"] = pnl_percent * 100
+
+            # Check for TP/SL hit
+            if pnl_percent >= TP or pnl_percent <= SL:
+                if pnl_percent >= TP:
+                    winrate_data[channel_id]["win"] += 1
+                else:
+                    winrate_data[channel_id]["lose"] += 1
+
+                state["available_balance"] += order["margin"] + order["pnl"]
+                logger.success(f"Order for {coin} closed with PnL: ${order['pnl']:.2f}")
+                orders_to_close.append((channel_id, coin))
+
+    # Remove closed orders from the state
+    for channel_id, coin in orders_to_close:
+        if coin in state["orders"].get(channel_id, {}):
+            del state["orders"][channel_id][coin]
+
+    return state, winrate_data
+
+
+def _update_display_data(state: dict, channels: dict, winrate_data: dict):
+    """Prepares and saves the data required for the GUI table."""
+    table_orders = []
+    total_pnl = 0
+    total_margin = 0
+
+    for channel_id, orders in state.get("orders", {}).items():
+        for coin, order in orders.items():
+            channel_name = channels.get(channel_id, {}).get("name", "Unknown")
+            table_orders.append(
+                [
+                    channel_name,
+                    coin,
+                    order.get("side"),
+                    f"${order.get('margin', 0):.2f}",
+                    order.get("entry_price"),
+                    order.get("current_price"),
+                    f"${order.get('pnl', 0):.2f}",
+                    f"{order.get('pnl_percent', 0):.2f}%",
+                ]
+            )
+            total_pnl += order.get("pnl", 0)
+            total_margin += order.get("margin", 0)
+
+    # Calculate global winrate
+    total_wins = sum(w.get("win", 0) for w in winrate_data.values())
+    total_loses = sum(w.get("lose", 0) for w in winrate_data.values())
+    global_winrate = (
+        (total_wins / (total_wins + total_loses) * 100)
+        if (total_wins + total_loses) > 0
+        else 0
+    )
+
+    # Calculate total equity
+    state["balance"] = state.get("available_balance", 0) + total_margin + total_pnl
+
+    table_data = {
+        "orders": table_orders,
+        "available_balance": round(state.get("available_balance", 0), 2),
+        "balance": round(state.get("balance", 0), 2),
+        "winrate": round(global_winrate, 2),
+    }
+    save_table(table_data)
+    save_state(state)  # Save final state after balance calculation
+    save_winrate(winrate_data)
+
+
+def updater_thread_worker():
+    """
+    The main worker loop that runs in a separate thread. It periodically updates
+    order statuses, calculates PnL, and prepares data for the GUI.
+    """
+    while True:
+        try:
+            state = get_state()
+            winrate_data = get_winrate()
+            channels = get_channels()
+
+            if not all([state, winrate_data, channels]):
+                logger.warning(
+                    "Updater: Missing state, winrate, or channels data. Retrying..."
+                )
                 time.sleep(5)
                 continue
 
-            order["cur_price"] = price
-            order_price = order.get("order_price", 0)
-            money = order.get("money", 0)
+            # Update order PnL and close positions that hit TP/SL
+            state, winrate_data = _update_open_orders(state, winrate_data)
 
-            if order_price == 0:
-                continue
-
-            if order.get("method") == "long":
-                profit_perc = (price / order_price - 1) * LEVERAGE
-            else:
-                profit_perc = (order_price / price - 1) * LEVERAGE
-
-            profit = (money / LEVERAGE) * profit_perc
-            order["profitPerc"] = profit_perc * 100
-            order["profit"] = profit
-
-            if profit_perc >= TP or profit_perc <= SL:
-                winrate = get_winrate()
-                if winrate is None:
-                    winrate = {}
-
-                if chan_id not in winrate:
-                    winrate[chan_id] = {"win": 0, "lose": 0}
-
-                if profit_perc >= TP:
-                    winrate[chan_id]["win"] += 1
-                else:
-                    winrate[chan_id]["lose"] += 1
-
-                save_winrate(winrate)
-
-                data["available_balance"] += (money / LEVERAGE) + profit
-                logger.success(f"{order} was closed with {profit}$")
-                orders_to_delete.append((chan_id, coin))
-
-    if orders_to_delete:
-        for chan_id, coin in orders_to_delete:
-            if chan_id in data["orders"] and coin in data["orders"][chan_id]:
-                del data["orders"][chan_id][coin]
-
-    balance = data.get("available_balance", 0)
-    for chan_id in data.get("orders", {}):
-        for coin, order in data["orders"][chan_id].items():
-            profit = order.get("profit", 0)
-            balance += profit + order.get("money", 0) / LEVERAGE
-    data["balance"] = balance
-
-    save_curdata(data)
-
-
-def updater():
-    """Main updater loop."""
-    while True:
-        try:
-            update_orders()
-
-            data = get_curdata()
-            channels = get_channels()
-            winrate = get_winrate()
-
-            if not all([data, channels, winrate]):
-                logger.error("Updater loop missing data, skipping iteration.")
-                time.sleep(1)
-                continue
-
-            orders = []
-            if not data:
-                logger.error("No data found, skipping order processing.")
-                time.sleep(1)
-                continue
-            for chan_id, order_data in data.get("orders", {}).items():
-                for coin, order in order_data.items():
-                    if not channels:
-                        logger.error("No channels found, skipping order processing.")
-                        continue
-                    orders.append(
-                        [
-                            channels.get(chan_id, {}).get("name", "Unknown"),
-                            coin,
-                            order.get("method"),
-                            round(order.get("money", 0), 3),
-                            order.get("order_price"),
-                            order.get("cur_price"),
-                            round(order.get("profit", 0), 3),
-                            round(order.get("profitPerc", 0), 3),
-                        ]
-                    )
-
-            if not winrate:
-                logger.error("No winrate data found, skipping order processing.")
-                continue
-            wins = sum(w.get("win", 0) for w in winrate.values())
-            loses = sum(w.get("lose", 0) for w in winrate.values())
-            winrate_global = (
-                round(wins / (wins + loses) * 100, 2) if (wins + loses) > 0 else 0
-            )
-
-            table_data = {
-                "orders": orders,
-                "available_balance": round(data.get("available_balance", 0), 2),
-                "balance": round(data.get("balance", 0), 2),
-                "winrate": winrate_global,
-            }
-
-            save_table(table_data)
+            # Prepare and save data for the GUI and save updated state
+            _update_display_data(state, channels, winrate_data)
 
         except Exception as e:
-            logger.error(f"An unexpected error occurred in updater: {e}", exc_info=True)
+            logger.error(
+                f"An unexpected error occurred in the updater thread: {e}",
+                exc_info=True,
+            )
 
-        time.sleep(1)
+        time.sleep(2)  # Update interval

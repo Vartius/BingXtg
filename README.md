@@ -1,128 +1,139 @@
-# Trading Bot
+# Telegram Signal Trading Bot for BingX
 
-This is a trading bot designed to automate trading strategies using Telegram channels as signal sources. It parses messages from specified Telegram channels, sets trading orders, and updates a GUI table with the current status of the trades. The bot supports both live trading and simulation modes.
+This is a Python-based trading bot that automates trading on the BingX exchange by parsing signals from Telegram channels. It features a real-time GUI, live trading, and simulation modes.
 
-## Features
+## ✨ Features
 
-- **Telegram Integration**: Parses trading signals from specified Telegram channels.
-- **Trading Automation**: Automatically places and manages trading orders on BingX exchange.
-- **Simulation Mode**: Allows testing strategies without real money.
-- **Real-Time Data**: Updates orders and balance in real-time.
-- **GUI Interface**: Displays current trades, balance, and win rate using a PyQt6-based table.
+-   **Telegram Integration**: Parses trading signals from specified public or private Telegram channels.
+-   **Automated Trading**: Automatically places market orders on the BingX Perpetual Swap market.
+-   **Live & Simulation Modes**: Test your strategies with a paper trading mode or run it live with real assets.
+-   **Dynamic Investment Strategy**: Adjusts the capital allocated to a trade based on the historical win rate of the signal channel.
+-   **Real-Time GUI**: A PyQt6-based interface displays current trades, PnL, account balance, and overall win rate.
+-   **Command Interface**: Manage the bot via commands in your private Telegram chat (e.g., check status, view data).
 
-## Requirements
+## ⚠️ Disclaimer
 
-- Python 3.11+
-- Required Python packages listed in `requirements.txt`
-- BingX API credentials
-- Telegram API credentials
-- [uv](https://github.com/astral-sh/uv) (optional, for faster package management)
-- [Docker](https://www.docker.com/) (optional, for containerized execution)
+Trading cryptocurrency involves significant risk. This bot is provided as-is, and the authors are not responsible for any financial losses. Always test thoroughly in simulation mode before trading with real money.
 
-## Setup
+## 🛠️ Requirements
 
-1. **Clone the repository**:
+-   Python 3.11+
+-   A Telegram account and API credentials.
+-   A BingX account and API credentials.
+-   [uv](https://github.com/astral-sh/uv) (recommended for fast package installation)
+-   [Docker](https://www.docker.com/) (optional, for containerized deployment)
+
+## 🚀 Setup and Configuration
+
+1.  **Clone the Repository**:
     ```bash
     git clone https://github.com/Vartius/BingXtg.git
     cd BingXtg
     ```
 
-2. **Install the required packages**:
+2.  **Create a Virtual Environment**:
     ```bash
-    pip install -r requirements.txt
-    # or using uv
-    uv sync
+    python -m venv .venv
+    source .venv/bin/activate  # On Windows use `.venv\Scripts\activate`
     ```
 
-3. **Configure the bot**:
-    - Create a `config.py` file with your BingX and Telegram API credentials and other configuration parameters.
-    - Example `config.py`:
-      ```python
-      START_BALANCE = 1000
-      MIN_ORDERS_TO_HIGH = 5
-      MAX_PERCENT = 0.05
-      LEVERAGE = 10
-      SECRETKEY = "your_secret_key"
-      APIKEY = "your_api_key"
-      TP = 0.05
-      SL = -0.03
-      APIURL = "https://api.bingx.com"
-      api_id = "your_telegram_api_id"
-      api_hash = "your_telegram_api_hash"
-      ```
+3.  **Install Dependencies**:
+    ```bash
+    # Using uv (recommended)
+    uv pip install -r requirements.txt
 
-4. **Prepare data files**:
-    - Ensure the following JSON files are present in `src/data/` directory:
-      - `curdata.json`
-      - `channels.json`
-      - `winrate.json`
-      - `table.json`
-    - Example JSON structures:
-      - `channels.json`:
-        ```json
-        {
-          "channel_id": {
-            "name": "Channel Name",
-            "regex": "coin_regex",
-            "long": "long_trigger_word",
-            "short": "short_trigger_word",
-            "do": true
-          }
-        }
-        ```
-      - `curdata.json`, `winrate.json`, and `table.json` can be initially empty or set with appropriate data structures as per the bot's requirements.
+    # Or using pip
+    pip install -r requirements.txt
+    ```
 
-## Running the Bot
+4.  **Configure the Bot**:
+    -   Rename `config.example.py` to `config.py`.
+    -   Open `config.py` and fill in your BingX and Telegram API credentials.
+    -   Adjust the trading parameters like `LEVERAGE`, `TP` (Take Profit), and `SL` (Stop Loss) to fit your strategy.
 
-1. **Start the bot**:
+5.  **Configure Signal Channels**:
+    -   Edit `src/data/channels.json`.
+    -   For each channel you want to parse, add an entry using its Telegram Chat ID as the key.
+    -   Define the `regex` to capture the coin ticker (e.g., `(BTC)`), and the keywords that trigger a `long` or `short` trade.
+    -   Set `"do": true` to enable parsing for that channel.
+
+    **Example `channels.json`**:
+    ```json
+    {
+      "-1001234567890": {
+        "name": "My Signal Channel",
+        "regex": "^\\w* (\\w*)",
+        "long": "LONG",
+        "short": "SHORT",
+        "do": true
+      }
+    }
+    ```
+
+6.  **Prepare Data Files**:
+    -   The `src/data/` directory contains the bot's state and data. The required files (`state.json`, `winrate.json`, `table.json`) will be created automatically on the first run if they don't exist.
+
+## ▶️ Running the Bot
+
+Once configured, you can start the bot from your terminal.
+
+1.  **Run the Main Script**:
     ```bash
     python main.py
-    # or using uv
-    uv run main.py
     ```
 
-2. **Choose an option**:
-    - `1`: Start live trading
-    - `2`: Start simulation
-    - `0` or any other key: Exit
+2.  **Choose an Option**:
+    -   `1`: Start live trading with your BingX account.
+    -   `2`: Start a simulation using the `START_BALANCE` from your config.
+    -   `0`: Exit the application.
 
-## Docker Usage
+## 🐳 Docker Usage
 
-You can also run the bot using Docker. The provided `Dockerfile` sets up the environment and runs the bot.
+You can build and run the bot in a Docker container for isolated and consistent execution.
 
-1.  **Build the Docker image**:
+1.  **Build the Docker Image**:
     ```bash
     docker build -t trading-bot .
     ```
 
-2.  **Run the Docker container**:
+2.  **Run the Docker Container**:
+    > **Note**: The GUI is disabled in Docker mode. You can manage the bot via Telegram commands.
     ```bash
-    docker run -it --rm trading-bot
+    # Create a volume to persist data
+    docker volume create trading-bot-data
+
+    # Run the container
+    docker run -it --rm \
+      -v trading-bot-data:/app/src/data \
+      --name my-trading-bot \
+      trading-bot
     ```
 
-## Files Overview
+## 📂 Project Structure
 
-- **main.py**: Entry point of the bot. Initializes the simulation or live trading mode.
-- **bingx.py**: Handles interaction with BingX API for placing orders and fetching prices.
-- **tableviewer.py**: Manages the GUI table that displays current trades and balances.
-- **text.py**: Parses text messages from Telegram channels to extract trading signals.
-- **tgparser.py**: Integrates with Telegram API to receive messages from specified channels and triggers trading actions.
+```
+├── src/
+│   ├── data/                 # Bot state and channel configs
+│   │   ├── channels.json     # Channel signal definitions
+│   │   ├── state.json        # Current balance and open orders
+│   │   └── ...
+│   ├── bingx_api.py          # Handles BingX API communication
+│   ├── command_handler.py    # Logic for Telegram bot commands
+│   ├── data_handler.py       # Manages reading/writing JSON data
+│   ├── order_handler.py      # Core logic for placing and updating orders
+│   ├── tableviewer.py        # PyQt6 GUI for real-time data
+│   ├── text_parser.py        # Extracts signals from messages
+│   └── tg_parser.py          # Telegram client and message routing
+├── config.example.py         # Configuration template
+├── main.py                   # Main entry point of the application
+├── requirements.txt          # Python dependencies
+└── Dockerfile                # Docker configuration```
 
-## Logging
+## 🤝 Contributing
 
-- The bot uses `loguru` for logging. Logs are saved to `logs.log`.
+Contributions are welcome! Feel free to open an issue to discuss a new feature or submit a pull request with your improvements.
 
-## Usage Notes
+## 📄 License
 
-- Ensure your `config.py` and JSON data files are properly configured before running the bot.
-- The bot updates the GUI table and logs in real-time. Check `logs.log` for detailed logs of bot activity.
-- Simulation mode is useful for testing strategies without risking real money.
-
-## Contributing
-
-- Feel free to open issues or submit pull requests to improve the bot.
-- Ensure code quality and consistency with existing project structure and style.
-
-## License
-
-- This project is licensed under the MIT License. See the `LICENSE` file for details.
+This project is licensed under the MIT License. See the `LICENSE` file for details.
+```
