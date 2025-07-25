@@ -1,5 +1,4 @@
 import sys
-import json
 from loguru import logger
 from src.tg_parser import start_telegram_parser
 from src.data_handler import (
@@ -55,9 +54,9 @@ def setup_session(is_simulation: bool):
         )
         sys.exit(1)
 
-    # Initialize winrate file if it doesn't exist
-    if winrate is None:
-        logger.warning("`winrate.json` not found, creating a new one.")
+    # Initialize winrate file if it doesn't exist or is not a dict
+    if winrate is None or not isinstance(winrate, dict):
+        logger.warning("`winrate.json` not found or invalid, creating a new one.")
         winrate = {}
 
     # Decide whether to start a new session or continue
@@ -80,10 +79,16 @@ def setup_session(is_simulation: bool):
                 "win": 0,
                 "lose": 0,
             }
-        if "orders" not in state:
+        if not isinstance(state, dict):
+            logger.critical("State is not a dictionary. Please check your state file.")
+            sys.exit(1)
+        if "orders" not in state or not isinstance(state["orders"], dict):
             state["orders"] = {}
         state["orders"][channel_id] = {}
 
+    if not isinstance(state, dict):
+        logger.critical("State is not a dictionary. Please check your state file.")
+        sys.exit(1)
     save_state(state)
     save_winrate(winrate)
 

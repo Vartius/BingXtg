@@ -11,9 +11,7 @@ import dataframe_image as dfi
 from loguru import logger
 from pyrogram.client import Client
 from pyrogram.types import Message
-from pyrogram import errors
 from src.order_handler import place_order
-from src.data_handler import get_state, save_state
 
 
 # --- DataFrame Styling Functions ---
@@ -31,7 +29,7 @@ def _style_table(df: pd.DataFrame):
         {"selector": "tr:nth-child(odd)", "props": [("background-color", "#1b1b1b")]},
     ]
     return (
-        df.style.set_table_styles(styles)
+        df.style.set_table_styles(styles)  # type: ignore
         .background_gradient(subset=["PnL ($)", "PnL (%)"], cmap="RdYlGn")
         .apply(
             lambda x: [
@@ -58,7 +56,7 @@ async def handle_chats_check(client: Client, message: Message, chat_ids: list):
         try:
             chat = await client.get_chat(chat_id)
             titles.append(f"✅ {chat.title or f'Chat {chat_id}'}")
-        except errors.PyrogramError as e:
+        except Exception as e:
             logger.error(f"Could not get info for chat {chat_id}: {e}")
             titles.append(f"❌ Error fetching chat {chat_id}")
     await message.reply_text(
@@ -130,7 +128,7 @@ async def handle_get_data(client: Client, message: Message):
 
         df_styled = _style_table(df)
         image_path = "table_export.png"
-        dfi.export(df_styled, image_path, table_conversion="matplotlib")
+        dfi.export(df_styled, image_path, table_conversion="matplotlib")  # type: ignore
 
         caption = (
             f"<b>Balance:</b> ${table_data.get('balance', 'N/A'):.2f}\n"
