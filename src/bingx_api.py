@@ -38,8 +38,8 @@ def get_price(coin: str) -> float | None:
     try:
         bingx = get_bingx_client()
         price_response = bingx.get_latest_price(f"{coin}-USDT")
-        if price_response.get("code") == 0:
-            return float(price_response["data"]["price"])
+        if price_response:
+            return float(price_response)
         else:
             logger.error(f"Error getting price for {coin}: {price_response.get('msg')}")
             return None

@@ -11,3 +11,4 @@ data/table.json
 *.session-journal
 .vscode/
 .venv/
+data/state.json
