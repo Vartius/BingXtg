@@ -3,12 +3,11 @@ This module handles the Telegram client, message listeners, and routing signals
 and commands to their respective handlers.
 """
 
-from enum import member
 import os
 import sys
 import json
 from threading import Thread
-from typing import List, Dict, Union
+from typing import List, Dict
 from loguru import logger
 from pyrogram import filters, errors
 from pyrogram.sync import idle

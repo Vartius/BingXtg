@@ -13,7 +13,6 @@ from pyrogram.client import Client
 from pyrogram.types import Message
 from pyrogram import errors
 from src.order_handler import place_order
-from src.data_handler import get_state, save_state
 
 
 # --- DataFrame Styling Functions ---

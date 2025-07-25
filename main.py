@@ -1,5 +1,4 @@
 import sys
-import json
 from loguru import logger
 from src.tg_parser import start_telegram_parser
 from src.data_handler import (
