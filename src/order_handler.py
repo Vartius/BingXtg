@@ -41,6 +41,15 @@ def place_order(channel_id: str, coin: str, side: str, is_simulation: bool) -> b
     """
     state = get_state()
     winrate_data = get_winrate()
+    # If state is a list, convert to dict if possible (e.g., take first element)
+    if isinstance(state, list):
+        if len(state) > 0 and isinstance(state[0], dict):
+            state = state[0]
+        else:
+            logger.error(
+                f"State data is not in expected format to place order for {channel_id}."
+            )
+            return False
     if not state or not winrate_data:
         logger.error(
             f"Could not get state or winrate data to place order for {channel_id}."
@@ -48,7 +57,17 @@ def place_order(channel_id: str, coin: str, side: str, is_simulation: bool) -> b
         return False
 
     # Calculate winrate factor for dynamic position sizing
-    channel_winrate = winrate_data.get(channel_id, {"win": 0, "lose": 0})
+    # If winrate_data is a list, convert it to a dict with channel_id as key if possible
+    if isinstance(winrate_data, list):
+        winrate_dict = {
+            item.get("channel_id"): item
+            for item in winrate_data
+            if "channel_id" in item
+        }
+    else:
+        winrate_dict = winrate_data
+
+    channel_winrate = winrate_dict.get(channel_id, {"win": 0, "lose": 0})
     total_trades = channel_winrate["win"] + channel_winrate["lose"]
 
     winrate_factor = 0
@@ -187,6 +206,31 @@ def updater_thread_worker():
             state = get_state()
             winrate_data = get_winrate()
             channels = get_channels()
+
+            # Convert state, winrate_data, and channels from list to dict if needed
+            if isinstance(state, list):
+                if len(state) > 0 and isinstance(state[0], dict):
+                    state = state[0]
+                else:
+                    state = {}
+            if isinstance(winrate_data, list):
+                winrate_data = {
+                    item.get("channel_id"): item
+                    for item in winrate_data
+                    if isinstance(item, dict) and "channel_id" in item
+                }
+            if isinstance(channels, list):
+                channels = {
+                    item.get("channel_id"): item
+                    for item in channels
+                    if isinstance(item, dict) and "channel_id" in item
+                }
+            if state is None:
+                state = {}
+            if winrate_data is None:
+                winrate_data = {}
+            if channels is None:
+                channels = {}
 
             if not all([state, winrate_data, channels]):
                 logger.warning(
