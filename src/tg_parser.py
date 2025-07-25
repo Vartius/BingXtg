@@ -3,6 +3,7 @@ This module handles the Telegram client, message listeners, and routing signals
 and commands to their respective handlers.
 """
 
+from enum import member
 import os
 import sys
 import json
@@ -119,10 +120,14 @@ async def main_telegram_loop():
         print(CHAT_IDS)
         for chat_id in CHAT_IDS:
             try:
-                chat = await app.get_chat(-1002827293103)
+                member = await app.get_chat_member(chat_id, "me")
+                print(member.status)
                 valid_chats.append(chat_id)
+            except errors.ChannelInvalid:
+                logger.error(f"Chat {chat_id} is invalid.")
             except Exception as e:
                 logger.error(f"Could not access chat {chat_id}: {e}")
+                valid_chats.append(chat_id)
         CHAT_IDS = valid_chats
 
         if not CHAT_IDS:
