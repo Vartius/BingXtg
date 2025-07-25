@@ -84,7 +84,7 @@ class TableViewer(QMainWindow):
         ]
         table.setColumnCount(len(headers))
         table.setHorizontalHeaderLabels(headers)
-        table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)  # type: ignore
         table.setEditTriggers(
             QTableWidget.EditTrigger.NoEditTriggers
         )  # Make table read-only

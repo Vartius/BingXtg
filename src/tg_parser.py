@@ -59,7 +59,7 @@ logger.info(f"Loaded {len(CHAT_IDS)} channels from configuration.")
 
 
 # --- Message Handlers ---
-@app.on_message(filters.chat(CHAT_IDS))
+@app.on_message(filters.chat(CHAT_IDS))  # type: ignore
 async def message_handler(client: Client, message: Message):
     """
     Primary message handler that listens to configured channels and private messages.
