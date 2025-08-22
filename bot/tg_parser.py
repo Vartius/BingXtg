@@ -3,7 +3,6 @@ This module handles the Telegram client, message listeners, and routing signals
 and commands to their respective handlers.
 """
 
-import os
 import sys
 import json
 from threading import Thread
@@ -60,43 +59,48 @@ async def message_handler(client: Client, message: Message):
     """
     Primary message handler that listens to configured channels and private messages.
     """
-    chat_id_str = str(message.chat.id)
-    text = message.text or message.caption
-    if not text:
-        return  # Ignore messages with no text content
-
-    # --- Command Handling (only from 'me' chat) ---
-    if message.from_user and message.from_user.is_self and text.startswith("."):
-        command = text.lower().strip()
-        await handle_command(command, client, message, CHAT_IDS, IS_SIMULATION)
-        return
-
-    # --- Signal Processing ---
-    signal = parse_message_for_signal(text, chat_id_str, CHANNELS_CONFIG)
-    if not signal:
-        return
-
-    coin, side, log_message = signal
-    logger.success(log_message)
-
-    # Prevent placing duplicate orders
     try:
-        with open("data/state.json", "r") as f:
-            state = json.load(f)
-        if coin in state.get("orders", {}).get(chat_id_str, {}):
-            logger.warning(
-                f"Order for {coin} from {chat_id_str} already exists. Skipping."
-            )
-            return
-    except (FileNotFoundError, json.JSONDecodeError):
-        pass  # File may not exist yet, proceed
+        chat_id_str = str(message.chat.id)
+        text = message.text or message.caption
+        if not text:
+            return  # Ignore messages with no text content
 
-    # Place the order
-    success = place_order(chat_id_str, coin, side, IS_SIMULATION)
-    if success:
-        logger.info(f"Successfully processed order for {coin} {side}.")
-    else:
-        logger.error(f"Failed to process order for {coin} {side}.")
+        # --- Command Handling (only from 'me' chat) ---
+        if message.from_user and message.from_user.is_self and text.startswith("."):
+            command = text.lower().strip()
+            await handle_command(command, client, message, CHAT_IDS, IS_SIMULATION)
+            return
+
+        # --- Signal Processing ---
+        signal = parse_message_for_signal(text, chat_id_str, CHANNELS_CONFIG)
+        if not signal:
+            return
+
+        coin, side, log_message = signal
+        logger.success(log_message)
+
+        # Prevent placing duplicate orders
+        try:
+            with open("data/state.json", "r") as f:
+                state = json.load(f)
+            if coin in state.get("orders", {}).get(chat_id_str, {}):
+                logger.warning(
+                    f"Order for {coin} from {chat_id_str} already exists. Skipping."
+                )
+                return
+        except (FileNotFoundError, json.JSONDecodeError):
+            pass  # File may not exist yet, proceed
+
+        # Place the order
+        success = place_order(chat_id_str, coin, side, IS_SIMULATION)
+        if success:
+            logger.info(f"Successfully processed order for {coin} {side}.")
+        else:
+            logger.error(f"Failed to process order for {coin} {side}.")
+
+    except Exception as e:
+        logger.error(f"Error in message handler: {type(e).__name__}: {e}")
+        logger.debug(f"Full traceback: {e}", exc_info=True)
 
 
 # --- Application Startup ---
@@ -112,16 +116,20 @@ async def main_telegram_loop():
 
         # Verify that the bot can access the configured channels
         valid_chats = []
-        print(CHAT_IDS)
+        logger.info(f"Validating access to {len(CHAT_IDS)} configured channels...")
         for chat_id in CHAT_IDS:
             try:
-                await app.get_chat(chat_id)
+                chat = await app.get_chat(chat_id)
                 valid_chats.append(chat_id)
+                logger.success(f"✓ Chat {chat_id} ({chat.title}) is accessible")
             except errors.ChannelInvalid:
-                logger.error(f"Chat {chat_id} is invalid.")
+                logger.error(f"✗ Chat {chat_id} is invalid or inaccessible")
+            except errors.PeerIdInvalid:
+                logger.error(f"✗ Chat {chat_id} has invalid peer ID")
             except Exception as e:
-                logger.error(f"Could not access chat {chat_id}: {e}")
-                valid_chats.append(chat_id)
+                logger.error(
+                    f"✗ Could not access chat {chat_id}: {type(e).__name__}: {e}"
+                )
         CHAT_IDS = valid_chats
 
         if not CHAT_IDS:

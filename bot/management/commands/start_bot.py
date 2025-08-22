@@ -72,6 +72,13 @@ def setup_session(is_simulation: bool):
     else:
         state = initialize_new_state()
 
+    # Clean up winrate and state data to only include currently configured channels
+    # Remove any channel IDs from winrate that are not in current channels config
+    channels_to_remove = [ch_id for ch_id in winrate.keys() if ch_id not in channels]
+    for channel_id in channels_to_remove:
+        logger.info(f"Removing obsolete channel {channel_id} from winrate data")
+        del winrate[channel_id]
+
     # Ensure winrate and order structures are initialized for each channel
     for channel_id in channels:
         if channel_id not in winrate:
@@ -86,6 +93,19 @@ def setup_session(is_simulation: bool):
         if "orders" not in state or not isinstance(state["orders"], dict):
             state["orders"] = {}
         state["orders"][channel_id] = {}
+
+    # Clean up state orders to only include currently configured channels
+    if (
+        isinstance(state, dict)
+        and "orders" in state
+        and isinstance(state["orders"], dict)
+    ):
+        orders_to_remove = [
+            ch_id for ch_id in state["orders"].keys() if ch_id not in channels
+        ]
+        for channel_id in orders_to_remove:
+            logger.info(f"Removing obsolete channel {channel_id} from state orders")
+            del state["orders"][channel_id]
 
     if not isinstance(state, dict):
         logger.critical("State is not a dictionary. Please check your state file.")
