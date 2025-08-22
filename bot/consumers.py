@@ -8,14 +8,14 @@ class DashboardConsumer(AsyncWebsocketConsumer):
         self.room_group_name = "dashboard"
 
         # Join the 'dashboard' group
-        await self.channel_layer.group_add(self.room_group_name, self.channel_name)
+        await self.channel_layer.group_add(self.room_group_name, self.channel_name)  # type: ignore
 
         await self.accept()
 
-    async def disconnect(self, close_code):
+    async def disconnect(self, close_code):  # type: ignore
         """Handles WebSocket disconnections."""
         # Leave the 'dashboard' group
-        await self.channel_layer.group_discard(self.room_group_name, self.channel_name)
+        await self.channel_layer.group_discard(self.room_group_name, self.channel_name)  # type: ignore
 
     async def dashboard_update(self, event):
         """
