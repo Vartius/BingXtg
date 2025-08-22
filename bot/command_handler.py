@@ -11,7 +11,7 @@ import dataframe_image as dfi
 from loguru import logger
 from pyrogram.client import Client
 from pyrogram.types import Message
-from src.order_handler import place_order
+from bot.order_handler import place_order
 
 
 # --- DataFrame Styling Functions ---

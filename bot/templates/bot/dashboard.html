@@ -1,0 +1,48 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trading Bot Dashboard</title>
+    <link rel="stylesheet" href="{% static 'bot/css/style.css' %}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Trading Bot Dashboard</h1>
+            <div id="info-bar" class="info-bar">
+                <div id="balance"><strong>Balance:</strong> $N/A</div>
+                <div id="available-balance"><strong>Available:</strong> $N/A</div>
+                <div id="winrate"><strong>Global Winrate:</strong> N/A%</div>
+            </div>
+        </header>
+
+        <main>
+            <div class="table-container">
+                <table id="orders-table">
+                    <thead>
+                        <tr>
+                            <th>Channel</th>
+                            <th>Coin</th>
+                            <th>Side</th>
+                            <th>Margin ($)</th>
+                            <th>Entry Price</th>
+                            <th>Current Price</th>
+                            <th>PnL ($)</th>
+                            <th>PnL (%)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Data will be inserted here by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </main>
+    </div>
+
+    {{ initial_data|json_script:"initial-data" }}
+
+    <script src="{% static 'bot/js/dashboard.js' %}"></script>
+</body>
+</html>

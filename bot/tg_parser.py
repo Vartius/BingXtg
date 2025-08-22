@@ -14,13 +14,9 @@ from pyrogram.sync import idle
 from pyrogram.client import Client
 from pyrogram.types import Message
 
-from src.text_parser import parse_message_for_signal
-from src.order_handler import place_order, updater_thread_worker
-from src.command_handler import handle_command
-
-# Import GUI starter only if not in a container
-if os.getenv("CONTAINER") != "YES":
-    from src.tableviewer import start_gui
+from bot.text_parser import parse_message_for_signal
+from bot.order_handler import place_order, updater_thread_worker
+from bot.command_handler import handle_command
 
 # --- Configuration and Client Setup ---
 try:
@@ -156,13 +152,6 @@ def start_telegram_parser(is_simulation: bool):
     # Start the background thread for updating orders and GUI data
     Thread(target=updater_thread_worker, daemon=True).start()
     logger.info("Started background updater thread.")
-
-    # Start the GUI in a separate thread if not in a container
-    if os.getenv("CONTAINER") != "YES":
-        Thread(target=start_gui, daemon=True).start()  # type: ignore
-        logger.info("Starting GUI in a separate thread.")
-    else:
-        logger.warning("GUI is disabled in container mode.")
 
     # Run the main async Telegram client loop
     app.run(main_telegram_loop())

@@ -6,8 +6,10 @@ updating their status, and handling the main update loop.
 import time
 import sys
 from loguru import logger
-from src.bingx_api import get_price, set_order_bingx
-from src.data_handler import (
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
+from bot.bingx_api import get_price, set_order_bingx
+from bot.data_handler import (
     get_state,
     save_state,
     get_winrate,
@@ -150,7 +152,7 @@ def _update_open_orders(state: dict, winrate_data: dict) -> tuple[dict, dict]:
 
 
 def _update_display_data(state: dict, channels: dict, winrate_data: dict):
-    """Prepares and saves the data required for the GUI table."""
+    """Prepares and saves data, then pushes it to connected clients."""
     table_orders = []
     total_pnl = 0
     total_margin = 0
@@ -163,11 +165,11 @@ def _update_display_data(state: dict, channels: dict, winrate_data: dict):
                     channel_name,
                     coin,
                     order.get("side"),
-                    f"${order.get('margin', 0):.2f}",
+                    f"{order.get('margin', 0):.2f}",
                     order.get("entry_price"),
                     order.get("current_price"),
-                    f"${order.get('pnl', 0):.2f}",
-                    f"{order.get('pnl_percent', 0):.2f}%",
+                    order.get("pnl", 0),
+                    order.get("pnl_percent", 0),
                 ]
             )
             total_pnl += order.get("pnl", 0)
@@ -191,8 +193,19 @@ def _update_display_data(state: dict, channels: dict, winrate_data: dict):
         "balance": round(state.get("balance", 0), 2),
         "winrate": round(global_winrate, 2),
     }
-    save_table(table_data)
-    save_state(state)  # Save final state after balance calculation
+
+    # Push update via WebSocket
+    try:
+        channel_layer = get_channel_layer()
+        if channel_layer is not None:
+            async_to_sync(channel_layer.group_send)(
+                "dashboard", {"type": "dashboard.update", "message": table_data}
+            )
+    except Exception as e:
+        logger.error(f"Error sending WebSocket update: {e}")
+
+    save_table(table_data)  # We still save the file for persistence
+    save_state(state)
     save_winrate(winrate_data)
 
 
