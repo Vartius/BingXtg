@@ -23,4 +23,4 @@ class DashboardConsumer(AsyncWebsocketConsumer):
         and forwards it to the client's WebSocket.
         """
         message = event["message"]
-        await self.send(text_data=json.dumps(message))
+        await self.send(text_data=json.dumps({"message": message}))

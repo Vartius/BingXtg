@@ -6,6 +6,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // --- Core UI Update Function ---
     function updateUI(data) {
+        // Check if data is valid
+        if (!data || typeof data !== 'object') {
+            console.warn('Invalid data received:', data);
+            return;
+        }
+
         // Update info bar
         const balance = data.balance ? data.balance.toFixed(2) : '0.00';
         const available_balance = data.available_balance ? data.available_balance.toFixed(2) : '0.00';
@@ -71,8 +77,14 @@ document.addEventListener('DOMContentLoaded', function() {
     };
 
     dashboardSocket.onmessage = function(e) {
-        const data = JSON.parse(e.data);
-        updateUI(data.message); // The data is nested under a 'message' key
+        try {
+            const data = JSON.parse(e.data);
+            // Check if data has message property, otherwise use data directly
+            const messageData = data.message || data;
+            updateUI(messageData);
+        } catch (error) {
+            console.error('Error parsing WebSocket message:', error, 'Raw data:', e.data);
+        }
     };
 
     dashboardSocket.onclose = function(e) {
