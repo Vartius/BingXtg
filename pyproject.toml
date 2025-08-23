@@ -6,8 +6,12 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "bingx>=0.0.74",
+    "channels>=4.3.1",
+    "channels-redis>=4.3.0",
     "cryptography>=45.0.5",
+    "daphne>=4.2.1",
     "dataframe-image==0.2.2",
+    "django>=5.2.5",
     "loguru==0.7.2",
     "numpy==1.26.2",
     "pandas==2.1.3",

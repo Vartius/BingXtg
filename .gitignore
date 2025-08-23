@@ -12,3 +12,5 @@ data/table.json
 .vscode/
 .venv/
 data/state.json
+.env
+*.sqlite3
