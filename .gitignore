@@ -14,3 +14,14 @@ data/table.json
 data/state.json
 .env
 *.sqlite3
+*.db
+
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+bkp
+ai_model/
+.github/
+regexGenAi/

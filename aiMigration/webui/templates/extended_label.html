@@ -1,0 +1,400 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2>Extended Signal Labeling{% if is_relabeling %} - Updating Existing Signal{% endif %}{% if sequential %} (Sequential){% endif %}</h2>
+{% if item %}
+  <article class="card">
+    <p class="muted" style="margin-bottom:.2rem">
+      <strong>Channel {{ item.channel_id }}</strong>
+      {% if is_relabeling %}
+        <span class="field-tag" style="margin-left: 0.5rem;">RELABELING</span>
+      {% endif %}
+      {% if sequential %}
+        <span class="field-tag" style="margin-left:.5rem;">SEQUENTIAL</span>
+      {% endif %}
+    </p>
+
+    {% if sequential and seq_total %}
+      <div class="channel-progress" style="margin:.4rem 0 1rem;">
+        <div class="meta">
+          <span>Incomplete signals labeled: {{ seq_done|default:0 }}/{{ seq_total }}</span>
+          <span>Current: {{ seq_current_index|default:"-" }}/{{ seq_total }}</span>
+        </div>
+        <progress value="{{ seq_done|default:0 }}" max="{{ seq_total }}"></progress>
+      </div>
+    {% endif %}
+
+    {% if existing_label %}
+      <div class="item-row" style="margin-bottom:.6rem">
+        <span class="muted">Current label:</span>
+        <span class="badge{% if existing_label.is_signal %} badge-positive{% endif %}">
+          {% if existing_label.is_signal %}Signal{% else %}Not Signal{% endif %}
+        </span>
+        {% if existing_label.is_signal and is_relabeling %}
+          <span class="muted" style="margin-left: 1rem;">Missing extended fields</span>
+        {% endif %}
+      </div>
+    {% endif %}
+
+    {% if ai %}
+      <div class="item-row" style="margin-bottom:.6rem">
+        <span class="muted">AI prediction:</span>
+        <span class="badge{% if ai.pred_value == 1 %} badge-positive{% endif %}">{{ ai.label }}</span>
+      </div>
+      <div>
+        <label class="muted" style="display:flex; justify-content:space-between; font-size:.9rem; margin-bottom:.2rem">
+          <span>Confidence</span>
+          <span>{{ ai.confidence }}%</span>
+        </label>
+        <progress class="{% if ai.pred_value == 1 %}progress-success{% else %}progress-danger{% endif %}" value="{{ ai.confidence }}" max="100"></progress>
+      </div>
+      
+      {% if ai_extracted %}
+        <div style="margin-top:.6rem">
+          <span class="muted">AI extracted fields:</span>
+          <div class="extracted-fields">
+            {% if ai_extracted.direction is not None %}
+              <span class="field-tag">{{ ai_extracted.direction|yesno:"SHORT,LONG" }}</span>
+            {% endif %}
+            {% if ai_extracted.pair %}
+              <span class="field-tag">{{ ai_extracted.pair|upper }}</span>
+            {% endif %}
+            {% if ai_extracted.entry %}
+              <span class="field-tag">Entry: {{ ai_extracted.entry }}</span>
+            {% endif %}
+            {% if ai_extracted.leverage %}
+              <span class="field-tag">{{ ai_extracted.leverage }}x</span>
+            {% endif %}
+            {% if ai_extracted.stop_loss %}
+              <span class="field-tag">SL: {{ ai_extracted.stop_loss }}</span>
+            {% endif %}
+          </div>
+        </div>
+      {% endif %}
+    {% endif %}
+
+    <div class="message" style="margin-top:.8rem">{{ item.message }}</div>
+    
+    <form action="{% url 'save_label' %}" method="post">
+      {% csrf_token %}
+      <input type="hidden" name="message_id" value="{{ item.id }}">
+      <input type="hidden" name="channel_id" value="{{ item.channel_id }}">
+      <input type="hidden" name="message" value="{{ item.message }}">
+      {% if sequential %}
+        <input type="hidden" name="sequential" value="1">
+      {% endif %}
+      {% if existing_label %}
+        <input type="hidden" name="labeled_id" value="{{ existing_label.id }}">
+      {% endif %}
+      
+      <!-- Signal Classification -->
+      <fieldset>
+        <legend>Signal Classification</legend>
+        <div class="btn-group">
+          <button type="button" class="signal-btn btn-success" data-value="1">Signal</button>
+          <button type="button" class="signal-btn btn-danger" data-value="0">Not Signal</button>
+        </div>
+        <input type="hidden" name="is_signal" id="is_signal" value="0">
+      </fieldset>
+
+      <!-- Extended Fields (only shown when Signal is selected) -->
+      <fieldset id="extended-fields" style="display: none;">
+        <legend>Signal Details</legend>
+        
+        <div class="grid">
+          <div>
+            <label for="direction">Direction</label>
+            <select name="direction" id="direction">
+              <option value="">Select direction...</option>
+              <option value="0">LONG</option>
+              <option value="1">SHORT</option>
+            </select>
+          </div>
+          
+          <div>
+            <label for="pair">Trading Pair</label>
+            <input type="text" name="pair" id="pair" placeholder="e.g., btc/usdt">
+          </div>
+        </div>
+
+        <div class="grid">
+          <div>
+            <label for="entry">Entry Price</label>
+            <input type="number" step="any" name="entry" id="entry" placeholder="e.g., 5.23">
+          </div>
+          
+          <div>
+            <label for="leverage">Leverage</label>
+            <input type="number" step="any" name="leverage" id="leverage" placeholder="e.g., 20">
+          </div>
+        </div>
+
+        <div class="grid">
+          <div>
+            <label for="stop_loss">Stop Loss</label>
+            <input type="number" step="any" name="stop_loss" id="stop_loss" placeholder="e.g., 0.12">
+          </div>
+          
+          <div>
+            <label for="targets">Targets (comma-separated)</label>
+            <input type="text" name="targets" id="targets" placeholder="e.g., 0.14, 0.15, 0.16">
+          </div>
+        </div>
+
+        <div>
+          <small class="muted">Enter multiple target values separated by commas</small>
+        </div>
+      </fieldset>
+
+      <div style="margin-top: 1rem;">
+        <button type="submit" disabled id="submit-btn">Save Label</button>
+      </div>
+    </form>
+  </article>
+{% else %}
+  <article class="card"><p>No unlabeled messages available.</p></article>
+{% endif %}
+
+<!-- Flags and prefill data to avoid Django tags inside JavaScript -->
+<div id="extended-flags"
+  data-existing-is-signal="{% if existing_label and existing_label.is_signal %}1{% else %}0{% endif %}"
+  data-existing-direction="{% if existing_label and existing_label.direction is not None %}{{ existing_label.direction }}{% endif %}"
+  data-existing-pair="{% if existing_label and existing_label.pair %}{{ existing_label.pair|escape }}{% endif %}"
+  data-existing-entry="{% if existing_label and existing_label.entry %}{{ existing_label.entry }}{% endif %}"
+  data-existing-leverage="{% if existing_label and existing_label.leverage %}{{ existing_label.leverage }}{% endif %}"
+  data-existing-stop-loss="{% if existing_label and existing_label.stop_loss %}{{ existing_label.stop_loss }}{% endif %}"
+  data-existing-targets='{% if existing_label and existing_label.targets %}{{ existing_label.targets|escapejs }}{% endif %}'
+  data-ai-present="{% if ai %}1{% else %}0{% endif %}"
+  data-ai-pred-value="{% if ai %}{{ ai.pred_value }}{% endif %}"
+  data-ai-confidence="{% if ai %}{{ ai.confidence }}{% endif %}"
+  data-ai-extracted-present="{% if ai_extracted %}1{% else %}0{% endif %}"
+  data-ai-direction="{% if ai_extracted and ai_extracted.direction is not None %}{{ ai_extracted.direction }}{% endif %}"
+  data-ai-pair="{% if ai_extracted and ai_extracted.pair %}{{ ai_extracted.pair|escape }}{% endif %}"
+  data-ai-entry="{% if ai_extracted and ai_extracted.entry %}{{ ai_extracted.entry }}{% endif %}"
+  data-ai-leverage="{% if ai_extracted and ai_extracted.leverage %}{{ ai_extracted.leverage }}{% endif %}"
+  data-ai-stop-loss="{% if ai_extracted and ai_extracted.stop_loss %}{{ ai_extracted.stop_loss }}{% endif %}"
+  data-ai-targets='{% if ai_extracted and ai_extracted.targets %}{{ ai_extracted.targets|escapejs }}{% endif %}'
+></div>
+
+<script>
+// Signal button selection logic
+document.addEventListener('DOMContentLoaded', function() {
+  const signalButtons = document.querySelectorAll('.signal-btn');
+  const extendedFields = document.getElementById('extended-fields');
+  const isSignalInput = document.getElementById('is_signal');
+  const submitBtn = document.getElementById('submit-btn');
+  const flags = (document.getElementById('extended-flags') || {}).dataset || {};
+  
+  // Handle signal button clicks
+  signalButtons.forEach(btn => {
+    btn.addEventListener('click', function() {
+      // Remove active class from all buttons
+      signalButtons.forEach(b => b.classList.remove('active'));
+      // Add active class to clicked button
+      this.classList.add('active');
+      
+      const value = this.dataset.value;
+      isSignalInput.value = value;
+      
+      // Show/hide extended fields based on selection
+      if (value === '1') {
+        extendedFields.style.display = 'block';
+      } else {
+        extendedFields.style.display = 'none';
+        // Clear all extended field values when not a signal
+        clearExtendedFields();
+      }
+      
+      // Enable submit button
+      submitBtn.disabled = false;
+    });
+  });
+  
+  function clearExtendedFields() {
+    document.getElementById('direction').value = '';
+    document.getElementById('pair').value = '';
+    document.getElementById('entry').value = '';
+    document.getElementById('leverage').value = '';
+    document.getElementById('stop_loss').value = '';
+    document.getElementById('targets').value = '';
+  }
+  
+  // Fillers
+  const aiExtractedPresent = flags.aiExtractedPresent === '1';
+  function fillAiExtracted() {
+    if (!aiExtractedPresent) return;
+    if (flags.aiDirection !== undefined && flags.aiDirection !== '') {
+      document.getElementById('direction').value = String(flags.aiDirection);
+    }
+    if (flags.aiPair) {
+      document.getElementById('pair').value = flags.aiPair;
+    }
+    if (flags.aiEntry) {
+      document.getElementById('entry').value = String(flags.aiEntry);
+    }
+    if (flags.aiLeverage) {
+      document.getElementById('leverage').value = String(flags.aiLeverage);
+    }
+    if (flags.aiStopLoss) {
+      document.getElementById('stop_loss').value = String(flags.aiStopLoss);
+    }
+    if (flags.aiTargets) {
+      try {
+        const targets = JSON.parse(flags.aiTargets);
+        if (Array.isArray(targets)) {
+          document.getElementById('targets').value = targets.join(', ');
+        }
+      } catch (e) {
+        console.log('Error parsing targets:', e);
+      }
+    }
+  }
+
+  function fillExistingFallback() {
+    // Only fill existing values into empty fields
+    if (flags.existingIsSignal !== '1') return;
+    const setIfEmpty = (id, val) => {
+      if (val === undefined || val === null || val === '') return;
+      const el = document.getElementById(id);
+      if (el && (el.value === '' || el.value === null)) {
+        el.value = String(val);
+      }
+    };
+    setIfEmpty('direction', flags.existingDirection);
+    setIfEmpty('pair', flags.existingPair);
+    setIfEmpty('entry', flags.existingEntry);
+    setIfEmpty('leverage', flags.existingLeverage);
+    setIfEmpty('stop_loss', flags.existingStopLoss);
+    if (document.getElementById('targets').value === '' && flags.existingTargets) {
+      try {
+        const t = JSON.parse(flags.existingTargets);
+        if (Array.isArray(t)) {
+          document.getElementById('targets').value = t.join(', ');
+        }
+      } catch (e) {
+        console.log('Error parsing existing targets:', e);
+      }
+    }
+  }
+  
+  // AI-first autoselect and prefill; fallback to existing label values
+  const aiPresent = flags.aiPresent === '1';
+  const aiConfidence = parseInt(flags.aiConfidence || '0', 10);
+  const aiPredValue = flags.aiPredValue;
+  let autoSelected = false;
+
+  if (aiPresent && aiPredValue !== undefined && aiPredValue !== '' && aiConfidence > 80) {
+    const predictedBtn = document.querySelector(`.signal-btn[data-value="${aiPredValue}"]`);
+    if (predictedBtn) {
+      predictedBtn.click();
+      autoSelected = true;
+      if (aiPredValue === '1') {
+        // Fill AI first, then fallback to existing
+        setTimeout(() => { fillAiExtracted(); setTimeout(fillExistingFallback, 80); }, 0);
+      }
+    }
+  }
+
+  if (!autoSelected) {
+    if (flags.existingIsSignal === '1') {
+      const signalBtn = document.querySelector('.signal-btn[data-value="1"]');
+      if (signalBtn) {
+        signalBtn.click();
+        setTimeout(() => { fillAiExtracted(); setTimeout(fillExistingFallback, 80); }, 0);
+      }
+    }
+  }
+  
+  // Also fill extracted fields when user manually selects Signal
+  signalButtons.forEach(btn => {
+    btn.addEventListener('click', function() {
+      if (this.dataset.value === '1') {
+        // Delay to ensure fields are visible first
+        setTimeout(() => { fillAiExtracted(); setTimeout(fillExistingFallback, 80); }, 0);
+      }
+    });
+  });
+});
+</script>
+
+<style>
+.signal-btn.active {
+  opacity: 1;
+  transform: scale(0.98);
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
+}
+
+.signal-btn:not(.active) {
+  opacity: 0.7;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.badge-positive {
+  background: var(--success);
+  color: white;
+  padding: 0.2rem 0.5rem;
+  border-radius: 6px;
+  font-size: 0.8rem;
+}
+
+small.muted {
+  display: block;
+  margin-top: 0.25rem;
+}
+
+.extracted-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.4rem;
+}
+
+.field-tag {
+  background: var(--brand);
+  color: white;
+  padding: 0.2rem 0.5rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.channel-progress {
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 8px;
+  padding: 0.8rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.channel-progress .meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.9rem;
+  margin-bottom: 0.4rem;
+}
+
+.channel-progress progress {
+  width: 100%;
+  height: 8px;
+  border-radius: 4px;
+  overflow: hidden;
+  appearance: none;
+}
+
+.channel-progress progress::-webkit-progress-bar {
+  background: #e0e0e0;
+}
+
+.channel-progress progress::-webkit-progress-value {
+  background: var(--success);
+}
+
+.channel-progress progress::-moz-progress-bar {
+  background: var(--success);
+}
+</style>
+{% endblock %}

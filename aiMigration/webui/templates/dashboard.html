@@ -1,0 +1,124 @@
+{% extends 'base.html' %}
+{% block content %}
+<style>
+  /* Channels pane layout and styling */
+  ul.channel-list { margin-top: .6rem; }
+  li.channel-item {
+    display: grid;
+    grid-template-columns: 1.6fr 1fr;
+    gap: 1rem;
+    align-items: center;
+    padding: .6rem 0;
+    border-bottom: 1px solid rgba(255,255,255,.08);
+  }
+  li.channel-item:last-child { border-bottom: 0; }
+
+  .channel-left { cursor: pointer; user-select: none; }
+  .channel-left:hover .channel-name { text-decoration: underline; }
+
+  .channel-name {
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .channel-sub {
+    font-size: .875rem;
+    color: var(--muted-color, #9aa4b2);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .channel-progress .meta {
+    display: flex;
+    justify-content: space-between;
+    gap: .8rem;
+    font-size: .85rem;
+    margin-bottom: .4rem;
+    color: var(--muted-color, #9aa4b2);
+  }
+  .channel-progress progress { width: 100%; height: .6rem; }
+
+  @media (max-width: 800px) {
+    li.channel-item { grid-template-columns: 1fr; align-items: start; }
+    .channel-progress { margin-top: .2rem; }
+  }
+</style>
+<h2>Dashboard</h2>
+{% if message %}
+  <article class="card" style="border-color: var(--brand-2);">
+    <p class="muted">{{ message }}</p>
+  </article>
+{% endif %}
+<section class="grid-two grid-wide-right">
+  <article class="card">
+    <h3>Labeling stats</h3>
+    <p class="muted">Overall progress of your dataset</p>
+    <ul class="clean">
+      <li class="item-row"><span>Total messages</span><span class="badge">{{ stats.total }}</span></li>
+      <li class="item-row"><span>Labeled</span><span class="badge">{{ stats.labeled }}</span></li>
+      <li class="item-row"><span>Signals</span><span class="badge">{{ stats.signals }}</span></li>
+    </ul>
+    {% if stats and stats.total %}
+      <div style="margin-top:.8rem">
+        <progress value="{{ stats.labeled }}" max="{{ stats.total }}"></progress>
+      </div>
+    {% endif %}
+    <p style="margin-top:.6rem"><strong>{{ training.recommended_action }}</strong></p>
+  </article>
+  <article class="card">
+    <div style="display:flex; justify-content:space-between; align-items:center; gap:.8rem">
+      <div>
+        <h3>Channels</h3>
+        <p class="muted">Hover to see ID, click the name to copy the channel ID.</p>
+      </div>
+      <form method="post" action="/channels/refresh/">
+        {% csrf_token %}
+        <button type="submit" class="secondary">Refresh names</button>
+      </form>
+    </div>
+    <ul class="clean channel-list">
+      {% for ch in channels %}
+      <li class="item-row channel-item">
+        <div class="channel-left" title="ID: {{ ch.channel_id }}" data-copy="{{ ch.channel_id }}">
+          <div class="channel-name">{% firstof ch.title ch.username ch.channel_id %}</div>
+          <div class="channel-sub">
+            {% if ch.username %}@{{ ch.username }} · {% endif %}ID: {{ ch.channel_id }}
+          </div>
+        </div>
+        <div class="channel-progress">
+          <div class="meta">
+            <span>
+              {% if ch.total_messages %}
+                {% widthratio ch.labeled_messages ch.total_messages 100 %}% labeled
+              {% else %}
+                0% labeled
+              {% endif %}
+            </span>
+            <span>{{ ch.labeled_messages|default_if_none:0 }}/{{ ch.total_messages|default_if_none:0 }}</span>
+          </div>
+          <progress value="{{ ch.labeled_messages|default_if_none:0 }}" max="{{ ch.total_messages|default_if_none:1 }}"></progress>
+        </div>
+      </li>
+      {% empty %}
+      <li class="item-row"><span class="muted">No channels yet.</span></li>
+      {% endfor %}
+    </ul>
+  </article>
+</section>
+<script>
+  // Click-to-copy channel ID from the name area
+  document.addEventListener('click', function (e) {
+    const el = e.target.closest('.channel-left');
+    if (!el) return;
+    const id = el.dataset.copy;
+    if (!id) return;
+    navigator.clipboard?.writeText(id).then(() => {
+      const prevTitle = el.getAttribute('title') || '';
+      el.setAttribute('title', 'Copied!');
+      setTimeout(() => el.setAttribute('title', prevTitle), 1200);
+    }).catch(() => {/* no-op */});
+  });
+</script>
+{% endblock %}

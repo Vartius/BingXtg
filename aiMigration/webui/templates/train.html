@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2>Train model</h2>
+<article class="card">
+  <p class="muted">Kick off fine-tuning with the latest labeled data.</p>
+  <form method="post">
+    {% csrf_token %}
+    <div class="btn-group">
+      <button type="submit">Start training</button>
+    </div>
+  </form>
+  {% if status %}
+  <p class="muted" style="margin-top:.8rem">{{ status }}</p>
+  {% endif %}
+</article>
+{% endblock %}
