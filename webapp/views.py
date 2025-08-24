@@ -33,7 +33,7 @@ def _ensure_services():
         services.init_services(DB_PATH)
 
 
-def _check_creds() -> Tuple[HttpResponseRedirect | int, str | None]:
+def _check_creds() -> Tuple[HttpResponse | int, str | None]:
     """Validate and return Telegram API credentials from config.py."""
     if not API_ID or not API_HASH:
         return redirect(
