@@ -3,14 +3,21 @@ import json
 import logging
 import asyncio
 import re
-from typing import Optional
-from django.http import HttpRequest, HttpResponse
+from typing import Optional, Tuple
+from django.http import HttpRequest, HttpResponse, HttpResponseRedirect
 from django.shortcuts import render, redirect
 from django.views.decorators.http import require_http_methods
 
 from src.telegram.message_extractor import MessageExtractor
 from src.config import DB_PATH as CONFIG_DB_PATH, MODEL_DIR
 from . import services
+
+# Import credentials from the main bot's config file
+try:
+    from config import API_ID, API_HASH
+except ImportError:
+    API_ID, API_HASH = None, None
+
 
 logger = logging.getLogger(__name__)
 
@@ -26,39 +33,14 @@ def _ensure_services():
         services.init_services(DB_PATH)
 
 
-def _check_creds() -> tuple[HttpResponse | int, str | None]:
-    """Validate and return Telegram API credentials from environment.
+def _check_creds() -> Tuple[HttpResponseRedirect | int, str | None]:
+    """Validate and return Telegram API credentials from config.py."""
+    if not API_ID or not API_HASH:
+        return redirect(
+            "/ai/?msg=" + "Missing API credentials in config.py (API_ID/API_HASH)"
+        ), None
 
-    Returns a 2-tuple to keep call-sites simple:
-    - On success: (api_id:int, api_hash:str)
-    - On error: (HttpResponse redirect with error message, None)
-    """
-    api_id_raw = (os.getenv("API_ID") or "").strip()
-    api_hash = (os.getenv("API_HASH") or "").strip()
-
-    # Treat placeholder values from README as missing
-    placeholders = {"your_telegram_api_id", "your_telegram_api_hash"}
-    if (
-        not api_id_raw
-        or not api_hash
-        or api_id_raw in placeholders
-        or api_hash in placeholders
-    ):
-        return redirect("/?msg=" + "Missing API credentials in .env (API_ID/API_HASH)"), None
-
-    # Validate API_ID (positive integer)
-    try:
-        api_id = int(api_id_raw)
-        if api_id <= 0:
-            raise ValueError
-    except ValueError:
-        return redirect("/?msg=" + "Invalid API_ID; must be a positive integer"), None
-
-    # Validate API_HASH (32 hex chars)
-    if not re.fullmatch(r"[0-9a-fA-F]{32}", api_hash):
-        return redirect("/?msg=" + "Invalid API_HASH format; expected 32 hex characters"), None
-
-    return api_id, api_hash
+    return API_ID, API_HASH
 
 
 def dashboard(request: HttpRequest) -> HttpResponse:
@@ -89,12 +71,10 @@ def refresh_channel_names(request: HttpRequest) -> HttpResponse:
     assert api_hash is not None
     extractor = MessageExtractor(db_path=DB_PATH)
     try:
-        updated = asyncio.run(
-            extractor.backfill_channel_metadata(api_id, api_hash)
-        )
-        return redirect("/?msg=" + f"Updated {updated} channels")
+        updated = asyncio.run(extractor.backfill_channel_metadata(api_id, api_hash))
+        return redirect("/ai/?msg=" + f"Updated {updated} channels")
     except Exception as e:
-        return redirect("/?msg=" + f"Error: {e}")
+        return redirect("/ai/?msg=" + f"Error: {e}")
 
 
 @require_http_methods(["GET", "POST"])
@@ -132,7 +112,7 @@ def extract_single(request: HttpRequest) -> HttpResponse:
     message: Optional[str] = None
     extractor = MessageExtractor(db_path=DB_PATH)
     if not entity:
-        return redirect("/?msg=" + "Entity is required for single extraction")
+        return redirect("/ai/?msg=" + "Entity is required for single extraction")
     try:
         import asyncio
 
@@ -392,6 +372,6 @@ def save_label(request: HttpRequest) -> HttpResponse:
 
     # Preserve mode on redirect
     if sequential:
-        return redirect("/label?sequential=1")
+        return redirect("/ai/label?sequential=1")
     else:
-        return redirect("label")
+        return redirect("/ai/label/")

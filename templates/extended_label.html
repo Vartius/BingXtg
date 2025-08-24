@@ -74,7 +74,7 @@
 
     <div class="message" style="margin-top:.8rem">{{ item.message }}</div>
     
-    <form action="{% url 'save_label' %}" method="post">
+    <form action="/ai/label/save/" method="post">
       {% csrf_token %}
       <input type="hidden" name="message_id" value="{{ item.id }}">
       <input type="hidden" name="channel_id" value="{{ item.channel_id }}">
