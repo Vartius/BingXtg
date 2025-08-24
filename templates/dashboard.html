@@ -73,7 +73,7 @@
         <h3>Channels</h3>
         <p class="muted">Hover to see ID, click the name to copy the channel ID.</p>
       </div>
-      <form method="post" action="/channels/refresh/">
+      <form method="post" action="/ai/channels/refresh/">
         {% csrf_token %}
         <button type="submit" class="secondary">Refresh names</button>
       </form>

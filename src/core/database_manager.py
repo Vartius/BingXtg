@@ -119,6 +119,27 @@ class DatabaseManager:
             )
             raise
 
+    # Helper: list columns of a table to gate ALTER TABLE operations
+    def _get_table_columns(self, table_name: str) -> set[str]:
+        """Return a set of column names for the given table."""
+        try:
+            with self._get_connection() as conn:
+                cursor = conn.execute(f"PRAGMA table_info({table_name})")
+                rows = cursor.fetchall()
+        except sqlite3.Error:
+            logger.exception(f"Failed to read table info for '{table_name}'")
+            return set()
+
+        cols: set[str] = set()
+        for row in rows:
+            try:
+                name = row["name"] if isinstance(row, sqlite3.Row) else row[1]
+            except Exception:
+                name = row[1] if len(row) > 1 else None
+            if name:
+                cols.add(str(name))
+        return cols
+
     # ==================== DATABASE INITIALIZATION ====================
 
     def init_database(self) -> None:
@@ -167,8 +188,9 @@ class DatabaseManager:
         """
         self._execute_query(query)
 
-        # Add new columns to existing table if they don't exist
+        # Only add missing columns by inspecting the existing schema first
         try:
+            existing = self._get_table_columns("labeled")
             columns_to_add = [
                 ("direction", "INTEGER"),
                 ("pair", "TEXT"),
@@ -179,19 +201,13 @@ class DatabaseManager:
             ]
 
             for column_name, column_type in columns_to_add:
-                try:
+                if column_name not in existing:
                     self._execute_query(
                         f"ALTER TABLE labeled ADD COLUMN {column_name} {column_type}"
                     )
                     logger.debug(f"Added column '{column_name}' to labeled table.")
-                except sqlite3.OperationalError as e:
-                    if "duplicate column name" in str(e).lower():
-                        # Column already exists, continue
-                        pass
-                    else:
-                        logger.warning(f"Failed to add column '{column_name}': {e}")
         except Exception as e:
-            logger.warning(f"Error adding new columns to labeled table: {e}")
+            logger.warning(f"Error checking/adding columns for labeled table: {e}")
 
         logger.debug("Table 'labeled' is ready.")
 
@@ -733,4 +749,3 @@ class DatabaseManager:
         """
         rows = self._execute_query(query, (), "all")
         return [row["channel_id"] for row in rows]
-

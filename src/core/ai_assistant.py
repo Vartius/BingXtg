@@ -632,13 +632,34 @@ class AIClassifier:
 
     def load_model(self, model_path: str = "./ai_model") -> bool:
         try:
+            # Convert to Path object and check if it exists
+            model_dir = Path(model_path)
+            if not model_dir.exists():
+                logger.warning(
+                    f"Model directory {model_path} does not exist, skipping load"
+                )
+                return False
+
+            # Check if it has required model files
+            config_file = model_dir / "config.json"
+            if not config_file.exists():
+                logger.warning(
+                    f"Model config not found at {config_file}, skipping load"
+                )
+                return False
+
+            # Use local_files_only=True to force loading from local directory
             self.model = MultiTaskDistilBert.from_pretrained(
-                model_path,
+                str(model_dir),  # Ensure it's a string path
                 num_labels_signal=2,
                 num_labels_direction=3,
                 num_ner_labels=len(NER_LABELS),
+                local_files_only=True,  # Force local loading
             )
-            self.tokenizer = AutoTokenizer.from_pretrained(model_path)
+            self.tokenizer = AutoTokenizer.from_pretrained(
+                str(model_dir),
+                local_files_only=True,  # Force local loading
+            )
             self.model.to(self.device)  # type: ignore[arg-type]
             logger.info(f"Model loaded from {model_path} onto {self.device}")
             return True
@@ -891,4 +912,3 @@ class ActiveLearningManager:
         except Exception:
             logger.exception("Failed to get training recommendations.")
             return {}
-
