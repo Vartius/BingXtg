@@ -1,15 +1,27 @@
 import sys
+import os
 from functools import lru_cache
 from loguru import logger
 from bingx.api import BingxAPI
+from dotenv import load_dotenv
 
-# --- Configuration Import ---
+# Load environment variables
+load_dotenv()
+
+# --- Configuration from Environment Variables ---
 try:
-    from config import LEVERAGE, SECRETKEY, APIKEY, TP, SL
-except ImportError:
-    logger.critical(
-        "`config.py` is missing or incomplete. Please configure it before running."
-    )
+    APIURL = os.getenv("APIURL", "https://open-api.bingx.com")
+    LEVERAGE = int(os.getenv("LEVERAGE", "20"))
+    SECRETKEY = os.getenv("SECRETKEY")
+    APIKEY = os.getenv("APIKEY")
+    TP = float(os.getenv("TP", "0.2"))
+    SL = float(os.getenv("SL", "-0.5"))
+
+    if not SECRETKEY or not APIKEY:
+        raise ValueError("SECRETKEY and APIKEY must be set in environment variables")
+
+except (ValueError, TypeError) as e:
+    logger.critical(f"Configuration error: {e}. Please check your .env file.")
     sys.exit(1)
 
 
@@ -20,7 +32,9 @@ def get_bingx_client() -> BingxAPI:
     The client is cached to avoid re-creation on every call.
     """
     if not APIKEY or not SECRETKEY:
-        logger.critical("BingX APIKEY or SECRETKEY is not set in `config.py`.")
+        logger.critical(
+            "BingX APIKEY or SECRETKEY is not set in environment variables."
+        )
         raise ValueError("API credentials are not configured.")
     return BingxAPI(APIKEY, SECRETKEY, timestamp="local")
 

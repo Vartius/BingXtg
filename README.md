@@ -47,8 +47,8 @@ Trading cryptocurrency involves significant risk. This bot is provided as-is, an
     ```
 
 4.  **Configure the Bot**:
-    -   Rename `config.example.py` to `config.py`.
-    -   Open `config.py` and fill in your BingX and Telegram API credentials.
+    -   Copy `.env.example` to `.env`.
+    -   Open `.env` and fill in your BingX and Telegram API credentials.
     -   Adjust the trading parameters like `LEVERAGE`, `TP` (Take Profit), and `SL` (Stop Loss) to fit your strategy.
 
 5.  **Configure Signal Channels**:

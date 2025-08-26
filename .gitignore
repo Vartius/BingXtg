@@ -1,6 +1,7 @@
-config.py
+.env
 *.pyc
 venv/
+.venv/
 __pycache__/
 *.log
 *.session
