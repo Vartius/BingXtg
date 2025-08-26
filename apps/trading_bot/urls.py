@@ -10,5 +10,6 @@ def favicon_view(request):
 urlpatterns = [
     path("", views.dashboard, name="dashboard"),
     path("data/", views.dashboard_data, name="dashboard_data"),
+    path("api/dashboard-data/", views.dashboard_data, name="api_dashboard_data"),
     path("favicon.ico", favicon_view, name="favicon"),
 ]

@@ -7,6 +7,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // --- Core UI Update Function ---
     function updateUI(data) {
+        console.log('updateUI called with data:', data);
+        
         // Check if data is valid
         if (!data || typeof data !== 'object') {
             console.warn('Invalid data received:', data);
@@ -14,9 +16,11 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         // Update stat cards with new format
-        const balance = data.balance ? data.balance.toFixed(2) : '0.00';
-        const available_balance = data.available_balance ? data.available_balance.toFixed(2) : '0.00';
-        const winrate = data.winrate ? data.winrate.toFixed(1) : '0.0';
+        const balance = data.balance ? parseFloat(data.balance).toFixed(2) : '0.00';
+        const available_balance = data.available_balance ? parseFloat(data.available_balance).toFixed(2) : '0.00';
+        const winrate = data.winrate ? parseFloat(data.winrate).toFixed(1) : '0.0';
+        
+        console.log('Updating UI with:', { balance, available_balance, winrate });
         
         balanceEl.textContent = `$${balance}`;
         availableBalanceEl.textContent = `$${available_balance}`;
@@ -26,15 +30,18 @@ document.addEventListener('DOMContentLoaded', function() {
         tableBody.innerHTML = ''; // Clear existing rows
         
         if (!data.orders || data.orders.length === 0) {
+            console.log('No orders to display, showing empty state');
             // Show empty state
             emptyState.style.display = 'block';
             document.querySelector('.orders-table').style.display = 'none';
         } else {
+            console.log('Displaying', data.orders.length, 'orders');
             // Hide empty state and show table
             emptyState.style.display = 'none';
             document.querySelector('.orders-table').style.display = 'table';
             
-            data.orders.forEach(order => {
+            data.orders.forEach((order, index) => {
+                console.log('Processing order', index, ':', order);
                 const row = tableBody.insertRow();
                 for (let i = 0; i < 8; i++) {
                     const cell = row.insertCell();
@@ -70,7 +77,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // --- Initial Data Load ---
     const initialData = JSON.parse(document.getElementById('initial-data').textContent);
+    console.log('Initial data loaded:', initialData);
     updateUI(initialData);
+
+    let fallbackInterval;
+    let websocketConnected = false;
 
     // --- WebSocket Connection ---
     const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
@@ -80,11 +91,18 @@ document.addEventListener('DOMContentLoaded', function() {
 
     dashboardSocket.onopen = function(e) {
         console.log("WebSocket connection established.");
+        websocketConnected = true;
+        // Clear fallback polling if WebSocket is connected
+        if (fallbackInterval) {
+            clearInterval(fallbackInterval);
+            fallbackInterval = null;
+        }
     };
 
     dashboardSocket.onmessage = function(e) {
         try {
             const data = JSON.parse(e.data);
+            console.log('WebSocket data received:', data);
             // Check if data has message property, otherwise use data directly
             const messageData = data.message || data;
             updateUI(messageData);
@@ -94,15 +112,47 @@ document.addEventListener('DOMContentLoaded', function() {
     };
 
     dashboardSocket.onclose = function(e) {
-        console.error('Dashboard socket closed unexpectedly. Attempting to reconnect...');
-        // Optional: Implement a reconnection logic here
-        setTimeout(function() {
-            // Reconnect logic
-        }, 1000);
+        console.error('Dashboard socket closed unexpectedly. Code:', e.code, 'Reason:', e.reason);
+        websocketConnected = false;
+        // Start fallback polling when WebSocket disconnects
+        startFallbackPolling();
     };
 
     dashboardSocket.onerror = function(err) {
-        console.error('WebSocket encountered error: ', err.message, 'Closing socket');
+        console.error('WebSocket encountered error:', err);
+        websocketConnected = false;
         dashboardSocket.close();
     };
+
+    // --- Fallback REST API Polling ---
+    function startFallbackPolling() {
+        if (fallbackInterval) return; // Already polling
+        
+        console.log('Starting fallback REST API polling...');
+        fallbackInterval = setInterval(async () => {
+            if (websocketConnected) {
+                clearInterval(fallbackInterval);
+                fallbackInterval = null;
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/dashboard-data/');
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('REST API data received:', data);
+                    updateUI(data);
+                }
+            } catch (error) {
+                console.error('Error fetching data via REST API:', error);
+            }
+        }, 3000); // Poll every 3 seconds
+    }
+
+    // Start fallback polling after a delay if WebSocket doesn't connect
+    setTimeout(() => {
+        if (!websocketConnected) {
+            startFallbackPolling();
+        }
+    }, 2000);
 });

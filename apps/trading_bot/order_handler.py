@@ -206,7 +206,7 @@ def _update_display_data(state: dict, channels: dict, winrate_data: dict):
         channel_layer = get_channel_layer()
         if channel_layer is not None:
             async_to_sync(channel_layer.group_send)(
-                "dashboard", {"type": "dashboard.update", "message": table_data}
+                "dashboard", {"type": "dashboard_update", "message": table_data}
             )
     except Exception as e:
         logger.error(f"Error sending WebSocket update: {e}")
