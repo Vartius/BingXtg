@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2>Extract messages</h2>
+<article class="card">
+  <h3>Bulk extract</h3>
+  <p class="muted">Scan a folder of exported messages and import a limited number per channel.</p>
+  <form method="post">
+    {% csrf_token %}
+    <div class="grid">
+      <label>Messages per channel (optional)
+        <input type="number" name="limit" min="1" placeholder="e.g. 200">
+      </label>
+    </div>
+    <div class="btn-group" style="margin-top:.6rem">
+      <button type="submit">Extract from folder</button>
+    </div>
+  </form>
+</article>
+
+<article class="card" style="margin-top:1rem">
+  <h3>Extract from specific entity</h3>
+  <p class="muted">Provide a channel username (without @), numeric id, or invite link.</p>
+  <form method="post" action="/ai/extract/single/">
+    {% csrf_token %}
+    <div class="grid">
+      <label>Identifier
+        <input type="text" name="entity" required placeholder="username, 12345678, or https://t.me/...">
+      </label>
+      <label>Limit
+        <input type="number" name="limit" min="1" placeholder="e.g. 500">
+      </label>
+    </div>
+    <div class="btn-group" style="margin-top:.6rem">
+      <button type="submit">Extract</button>
+    </div>
+  </form>
+  {% if message %}
+    <p class="muted" style="margin-top:.6rem">{{ message }}</p>
+  {% endif %}
+</article>
+{% endblock %}
