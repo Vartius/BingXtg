@@ -33,12 +33,32 @@ def dashboard(request):
 
 def dashboard_data(request):
     """
-    This view is no longer used by the WebSocket frontend, but we can keep it
-    for debugging or for a potential REST API in the future.
+    REST API endpoint that returns the current dashboard data.
+    Used as a fallback when WebSocket is not available.
     """
     try:
         with open("data/table.json", "r", encoding="utf-8") as f:
             data = json.load(f)
         return JsonResponse(data)
     except FileNotFoundError:
-        return JsonResponse({"error": "Data file not found."}, status=404)
+        # Return default structure if file doesn't exist
+        default_data = {
+            "orders": [],
+            "balance": 0.0,
+            "available_balance": 0.0,
+            "winrate": 0.0,
+        }
+        logger.warning("table.json not found. Returning default data.")
+        return JsonResponse(default_data)
+    except json.JSONDecodeError:
+        logger.error("table.json contains invalid JSON. Returning default data.")
+        default_data = {
+            "orders": [],
+            "balance": 0.0,
+            "available_balance": 0.0,
+            "winrate": 0.0,
+        }
+        return JsonResponse(default_data)
+    except Exception as e:
+        logger.error(f"Unexpected error in dashboard_data: {e}")
+        return JsonResponse({"error": "Internal server error"}, status=500)
