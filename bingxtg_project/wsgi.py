@@ -1,5 +1,5 @@
 """
-WSGI config for trading_bot_project project.
+WSGI config for bingxtg_project project.
 
 It exposes the WSGI callable as a module-level variable named ``application``.
 
@@ -8,9 +8,8 @@ https://docs.djangoproject.com/en/5.2/howto/deployment/wsgi/
 """
 
 import os
-
 from django.core.wsgi import get_wsgi_application
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'trading_bot_project.settings')
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "bingxtg_project.settings")
 
 application = get_wsgi_application()

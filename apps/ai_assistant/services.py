@@ -12,8 +12,8 @@ def init_services(db_path: str) -> None:
     if db_manager is not None and ai_classifier is not None and al_manager is not None:
         return
 
-    from src.core.database_manager import DatabaseManager
-    from src.core.ai_assistant import AIClassifier, ActiveLearningManager
+    from utils.database_manager import DatabaseManager
+    from utils.ai_assistant import AIClassifier, ActiveLearningManager
 
     db_manager = DatabaseManager(db_path)
     # Ensure tables exist at startup

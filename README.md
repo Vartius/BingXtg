@@ -77,15 +77,42 @@ Trading cryptocurrency involves significant risk. This bot is provided as-is, an
 
 Once configured, you can start the bot from your terminal.
 
-1.  **Run the Main Script**:
+## 🚀 Quick Start
+
+1.  **Install Dependencies**:
     ```bash
-    python main.py
+    # Using uv (recommended)
+    uv sync
+    
+    # Or using pip
+    pip install -r requirements.txt
     ```
 
-2.  **Choose an Option**:
-    -   `1`: Start live trading with your BingX account.
-    -   `2`: Start a simulation using the `START_BALANCE` from your config.
-    -   `0`: Exit the application.
+2.  **Configure Environment**:
+    ```bash
+    cp .env.example .env
+    # Edit .env with your API credentials
+    ```
+
+3.  **Run Database Migrations**:
+    ```bash
+    python manage.py migrate
+    ```
+
+4.  **Start the Django Development Server**:
+    ```bash
+    python manage.py runserver
+    ```
+
+5.  **Access the Web Interface**:
+    - Trading Dashboard: http://localhost:8000/
+    - AI Assistant: http://localhost:8000/ai/
+    - Admin Panel: http://localhost:8000/admin/
+
+6.  **Start the Trading Bot** (in a separate terminal):
+    ```bash
+    python manage.py start_bot
+    ```
 
 ## 🐳 Docker Usage
 
@@ -93,41 +120,82 @@ You can build and run the bot in a Docker container for isolated and consistent 
 
 1.  **Build the Docker Image**:
     ```bash
-    docker build -t trading-bot .
+    docker build -t bingxtg .
     ```
 
 2.  **Run the Docker Container**:
-    > **Note**: The GUI is disabled in Docker mode. You can manage the bot via Telegram commands.
     ```bash
     # Create a volume to persist data
-    docker volume create trading-bot-data
+    docker volume create bingxtg-data
 
     # Run the container
     docker run -it --rm \
-      -v trading-bot-data:/app/src/data \
-      --name my-trading-bot \
-      trading-bot
+      -v bingxtg-data:/app/data \
+      -p 8000:8000 \
+      --name bingxtg \
+      bingxtg
     ```
 
 ## 📂 Project Structure
 
+The project follows Django best practices with a modular app structure:
+
 ```
-├── src/
-│   ├── data/                 # Bot state and channel configs
-│   │   ├── channels.json     # Channel signal definitions
-│   │   ├── state.json        # Current balance and open orders
-│   │   └── ...
-│   ├── bingx_api.py          # Handles BingX API communication
-│   ├── command_handler.py    # Logic for Telegram bot commands
-│   ├── data_handler.py       # Manages reading/writing JSON data
-│   ├── order_handler.py      # Core logic for placing and updating orders
-│   ├── tableviewer.py        # PyQt6 GUI for real-time data
-│   ├── text_parser.py        # Extracts signals from messages
-│   └── tg_parser.py          # Telegram client and message routing
-├── config.example.py         # Configuration template
-├── main.py                   # Main entry point of the application
-├── requirements.txt          # Python dependencies
-└── Dockerfile                # Docker configuration```
+BingXtg/
+├── apps/                     # Django applications
+│   ├── ai_assistant/         # AI classification and training
+│   ├── telegram_client/      # Telegram integration
+│   └── trading_bot/          # Main trading bot functionality
+├── bingxtg_project/          # Main Django project configuration
+├── utils/                    # Shared utilities and business logic
+├── static/                   # Static files (CSS, JS, images)
+├── templates/                # Django templates
+├── data/                     # Configuration and data files
+├── manage.py                 # Django management script
+└── requirements.txt          # Python dependencies
+```
+
+See [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md) for detailed documentation.
+
+## 🎮 Web Interface
+
+The project includes a modern web interface built with Django:
+
+### Trading Dashboard
+- Real-time trading status and PnL
+- Live order monitoring
+- Performance analytics
+- WebSocket-powered real-time updates
+
+### AI Assistant
+- Message labeling and classification
+- Model training interface
+- Active learning recommendations
+- Data extraction from Telegram channels
+
+### Admin Panel
+- User management
+- Database administration
+- System configuration
+
+## 🤖 Management Commands
+
+The project includes several Django management commands:
+
+```bash
+# Start the trading bot
+python manage.py start_bot
+
+# Extract messages from Telegram
+python manage.py extract_messages
+
+# Train AI models
+python manage.py train_models
+
+# Database maintenance
+python manage.py migrate
+python manage.py collectstatic
+```
 
 ## 🤝 Contributing
 

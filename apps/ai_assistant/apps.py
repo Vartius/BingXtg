@@ -1,9 +1,10 @@
 from django.apps import AppConfig
 
 
-class WebappConfig(AppConfig):
+class AiAssistantConfig(AppConfig):
     default_auto_field = "django.db.models.BigAutoField"
-    name = "webapp"
+    name = "apps.ai_assistant"
+    verbose_name = "AI Assistant"
 
     def ready(self):
         # Avoid double initialization when using Django's autoreloader in debug
@@ -14,7 +15,7 @@ class WebappConfig(AppConfig):
             return
 
         try:
-            from src.config import DB_PATH
+            from utils.config import DB_PATH
             from . import services
 
             services.init_services(str(DB_PATH))

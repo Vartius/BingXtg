@@ -5,10 +5,10 @@ from dotenv import load_dotenv
 from telethon import TelegramClient
 from telethon.tl.custom.dialog import Dialog
 from telethon.tl.custom.message import Message
-from src.core.database_manager import DatabaseManager
+from utils.database_manager import DatabaseManager
 from pathlib import Path
 
-from src.config import SESSION_FILE
+from utils.config import SESSION_FILE
 
 load_dotenv()
 logger = logging.getLogger(__name__)
@@ -335,4 +335,3 @@ class MessageExtractor:
                 except Exception:
                     logger.exception(f"Failed to fetch metadata for channel {ch_id}")
         return updated
-

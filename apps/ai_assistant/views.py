@@ -8,8 +8,8 @@ from django.http import HttpRequest, HttpResponse, HttpResponseRedirect
 from django.shortcuts import render, redirect
 from django.views.decorators.http import require_http_methods
 
-from src.telegram.message_extractor import MessageExtractor
-from src.config import DB_PATH as CONFIG_DB_PATH, MODEL_DIR
+from apps.telegram_client.message_extractor import MessageExtractor
+from utils.config import DB_PATH as CONFIG_DB_PATH, MODEL_DIR
 from . import services
 
 # Import credentials from the main bot's config file
