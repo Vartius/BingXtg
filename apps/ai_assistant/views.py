@@ -2,20 +2,25 @@ import os
 import json
 import logging
 import asyncio
-import re
 from typing import Optional, Tuple
-from django.http import HttpRequest, HttpResponse, HttpResponseRedirect
+from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render, redirect
 from django.views.decorators.http import require_http_methods
+from dotenv import load_dotenv
 
 from apps.telegram_client.message_extractor import MessageExtractor
 from utils.config import DB_PATH as CONFIG_DB_PATH, MODEL_DIR
 from . import services
 
-# Import credentials from the main bot's config file
+# Load environment variables
+load_dotenv()
+
+# Import credentials from environment variables
 try:
-    from config import API_ID, API_HASH
-except ImportError:
+    api_id_str = os.getenv("API_ID")
+    API_ID = int(api_id_str) if api_id_str else None
+    API_HASH = os.getenv("API_HASH")
+except (ValueError, TypeError):
     API_ID, API_HASH = None, None
 
 
@@ -34,10 +39,11 @@ def _ensure_services():
 
 
 def _check_creds() -> Tuple[HttpResponse | int, str | None]:
-    """Validate and return Telegram API credentials from config.py."""
+    """Validate and return Telegram API credentials from environment variables."""
     if not API_ID or not API_HASH:
         return redirect(
-            "/ai/?msg=" + "Missing API credentials in config.py (API_ID/API_HASH)"
+            "/ai/?msg="
+            + "Missing API credentials in environment variables (API_ID/API_HASH)"
         ), None
 
     return API_ID, API_HASH

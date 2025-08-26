@@ -4,6 +4,7 @@ and commands to their respective handlers.
 """
 
 import sys
+import os
 import json
 from threading import Thread
 from typing import List, Dict
@@ -12,22 +13,25 @@ from pyrogram import filters, errors
 from pyrogram.sync import idle
 from pyrogram.client import Client
 from pyrogram.types import Message
+from dotenv import load_dotenv
 
-from bot.text_parser import parse_message_for_signal
-from bot.order_handler import place_order, updater_thread_worker
-from bot.command_handler import handle_command
+from .text_parser import parse_message_for_signal
+from .order_handler import place_order, updater_thread_worker
+from .command_handler import handle_command
 
-# --- Configuration and Client Setup ---
+# Load environment variables
+load_dotenv()
+
+# --- Configuration from Environment Variables ---
 try:
-    from config import API_ID, API_HASH
-except ImportError:
-    logger.critical(
-        "Could not import `config.py`. Please rename `config.example.py` to `config.py` and fill it out."
-    )
-    sys.exit(1)
+    API_ID = int(os.getenv("API_ID"))
+    API_HASH = os.getenv("API_HASH")
 
-if not API_ID or not API_HASH:
-    logger.critical("API_ID and API_HASH are not configured in `config.py`.")
+    if not API_ID or not API_HASH:
+        raise ValueError("API_ID and API_HASH must be set in environment variables")
+
+except (ValueError, TypeError) as e:
+    logger.critical(f"Configuration error: {e}. Please check your .env file.")
     sys.exit(1)
 
 app = Client("my_account", api_id=API_ID, api_hash=API_HASH)

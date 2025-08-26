@@ -5,11 +5,13 @@ updating their status, and handling the main update loop.
 
 import time
 import sys
+import os
 from loguru import logger
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
-from bot.bingx_api import get_price, set_order_bingx
-from bot.data_handler import (
+from dotenv import load_dotenv
+from .bingx_api import get_price, set_order_bingx
+from .data_handler import (
     get_state,
     save_state,
     get_winrate,
@@ -18,13 +20,18 @@ from bot.data_handler import (
     save_table,
 )
 
-# --- Configuration Import ---
+# Load environment variables
+load_dotenv()
+
+# --- Configuration from Environment Variables ---
 try:
-    from config import MIN_ORDERS_TO_HIGH, MAX_PERCENT, LEVERAGE, TP, SL
-except ImportError:
-    logger.critical(
-        "`config.py` is missing or incomplete. Please configure it before running."
-    )
+    MIN_ORDERS_TO_HIGH = int(os.getenv("MIN_ORDERS_TO_HIGH", "20"))
+    MAX_PERCENT = float(os.getenv("MAX_PERCENT", "0.3"))
+    LEVERAGE = int(os.getenv("LEVERAGE", "20"))
+    TP = float(os.getenv("TP", "0.2"))
+    SL = float(os.getenv("SL", "-0.5"))
+except (ValueError, TypeError) as e:
+    logger.critical(f"Configuration error: {e}. Please check your .env file.")
     sys.exit(1)
 
 

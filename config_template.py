@@ -1,21 +1,28 @@
 #
-# --- Configuration for the Trading Bot ---
+# --- DEPRECATED: Configuration moved to .env file ---
 #
-# 1. RENAME this file from `config.example.py` to `config.py`.
-# 2. FILL IN your API credentials and preferred settings.
-# 3. DO NOT share your `config.py` file or commit it to version control.
+# This file is deprecated. Configuration has been moved to environment variables.
+#
+# 1. COPY `.env.example` to `.env`
+# 2. EDIT `.env` and fill in your API credentials and preferred settings.
+# 3. DO NOT share your `.env` file or commit it to version control.
+#
+# The application now uses python-dotenv to load configuration from .env file.
+# See .env.example for all available configuration options.
 #
 
-# --- BingX API Credentials ---
+# This file is kept for reference only and is no longer used by the application.
+
+# --- BingX API Credentials (now in .env as APIKEY, SECRETKEY) ---
 # Create these at https://bingx.com/en-us/account/api/
-APIURL = "https://open-api.bingx.com"
-APIKEY = "YOUR_BINGX_API_KEY"
-SECRETKEY = "YOUR_BINGX_SECRET_KEY"
+APIURL = "https://open-api.bingx.com"  # now APIURL in .env
+APIKEY = "YOUR_BINGX_API_KEY"  # now APIKEY in .env
+SECRETKEY = "YOUR_BINGX_SECRET_KEY"  # now SECRETKEY in .env
 
-# --- Telegram API Credentials ---
+# --- Telegram API Credentials (now in .env as API_ID, API_HASH) ---
 # Get these from my.telegram.org
-API_ID = 12345678
-API_HASH = "YOUR_TELEGRAM_API_HASH"
+API_ID = 12345678  # now API_ID in .env
+API_HASH = "YOUR_TELEGRAM_API_HASH"  # now API_HASH in .env
 
 # --- Trading Parameters ---
 # The leverage to be used for all trades.

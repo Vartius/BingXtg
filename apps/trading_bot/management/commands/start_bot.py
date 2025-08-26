@@ -1,22 +1,25 @@
 import sys
+import os
 from django.core.management.base import BaseCommand
 from loguru import logger
-from bot.data_handler import (
+from dotenv import load_dotenv
+from apps.trading_bot.data_handler import (
     get_state,
     save_state,
     get_channels,
     get_winrate,
     save_winrate,
 )
-from bot.tg_parser import start_telegram_parser
+from apps.trading_bot.tg_parser import start_telegram_parser
+
+# Load environment variables
+load_dotenv()
 
 # Safely import configuration
 try:
-    from config import START_BALANCE
-except ImportError:
-    logger.critical(
-        "Could not import `config.py`. Please rename `config.example.py` to `config.py` and fill it out."
-    )
+    START_BALANCE = float(os.getenv("START_BALANCE", "10.0"))
+except (ValueError, TypeError) as e:
+    logger.critical(f"Configuration error: {e}. Please check your .env file.")
     sys.exit(1)
 
 
