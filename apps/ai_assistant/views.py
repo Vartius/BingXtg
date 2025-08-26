@@ -59,7 +59,7 @@ def dashboard(request: HttpRequest) -> HttpResponse:
     message = request.GET.get("msg")
     return render(
         request,
-        "dashboard.html",
+        "ai_dashboard.html",
         {
             "stats": stats,
             "channels": channels,

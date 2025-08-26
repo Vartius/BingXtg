@@ -3,6 +3,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const availableBalanceEl = document.getElementById('available-balance');
     const winrateEl = document.getElementById('winrate');
     const tableBody = document.querySelector('#orders-table tbody');
+    const emptyState = document.getElementById('empty-state');
 
     // --- Core UI Update Function ---
     function updateUI(data) {
@@ -12,22 +13,27 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        // Update info bar
+        // Update stat cards with new format
         const balance = data.balance ? data.balance.toFixed(2) : '0.00';
         const available_balance = data.available_balance ? data.available_balance.toFixed(2) : '0.00';
-        balanceEl.innerHTML = `<strong>Balance:</strong> $${balance}`;
-        availableBalanceEl.innerHTML = `<strong>Available:</strong> $${available_balance}`;
-        winrateEl.innerHTML = `<strong>Global Winrate:</strong> ${data.winrate || 0}%`;
+        const winrate = data.winrate ? data.winrate.toFixed(1) : '0.0';
+        
+        balanceEl.textContent = `$${balance}`;
+        availableBalanceEl.textContent = `$${available_balance}`;
+        winrateEl.textContent = `${winrate}%`;
 
         // Update table
         tableBody.innerHTML = ''; // Clear existing rows
+        
         if (!data.orders || data.orders.length === 0) {
-            const row = tableBody.insertRow();
-            const cell = row.insertCell();
-            cell.colSpan = 8;
-            cell.textContent = 'No open orders.';
-            cell.style.textAlign = 'center';
+            // Show empty state
+            emptyState.style.display = 'block';
+            document.querySelector('.orders-table').style.display = 'none';
         } else {
+            // Hide empty state and show table
+            emptyState.style.display = 'none';
+            document.querySelector('.orders-table').style.display = 'table';
+            
             data.orders.forEach(order => {
                 const row = tableBody.insertRow();
                 for (let i = 0; i < 8; i++) {
