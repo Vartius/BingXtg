@@ -24,7 +24,7 @@ def dashboard(request):
 
     return render(
         request,
-        "bot/dashboard.html",
+        "trading_dashboard.html",
         {
             "initial_data": json.dumps(initial_data)  # Pass as a JSON string
         },

@@ -134,6 +134,7 @@ async def main_telegram_loop():
                 logger.error(
                     f"✗ Could not access chat {chat_id}: {type(e).__name__}: {e}"
                 )
+                valid_chats.append(chat_id)
         CHAT_IDS = valid_chats
 
         if not CHAT_IDS:

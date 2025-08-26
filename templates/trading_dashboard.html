@@ -1,0 +1,189 @@
+{% extends 'base.html' %}
+{% block content %}
+<style>
+  /* Trading Dashboard Specific Styling */
+  .trading-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+  }
+  
+  .stat-card {
+    background: linear-gradient(135deg, var(--ctp-surface0), var(--ctp-surface1));
+    border: 1px solid var(--ctp-surface2);
+    border-radius: 12px;
+    padding: 1.5rem;
+    text-align: center;
+    box-shadow: 
+      0 4px 20px rgba(0,0,0,.2), 
+      inset 0 1px 0 rgba(139, 213, 202, 0.1);
+    transition: all 0.2s ease;
+  }
+  
+  .stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 
+      0 8px 30px rgba(0,0,0,.3), 
+      inset 0 1px 0 rgba(139, 213, 202, 0.15);
+  }
+  
+  .stat-label {
+    color: var(--ctp-subtext0);
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+  }
+  
+  .stat-value {
+    color: var(--ctp-teal);
+    font-size: 1.8rem;
+    font-weight: 700;
+    text-shadow: 0 2px 4px rgba(139, 213, 202, 0.3);
+  }
+  
+  .orders-table-container {
+    background: linear-gradient(135deg, var(--ctp-mantle), var(--ctp-surface0));
+    border: 1px solid var(--ctp-surface1);
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 
+      0 12px 40px rgba(0,0,0,.3), 
+      inset 0 1px 0 rgba(139, 213, 202, 0.1);
+  }
+  
+  .orders-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0;
+  }
+  
+  .orders-table th,
+  .orders-table td {
+    padding: 1rem;
+    text-align: left;
+    border-bottom: 1px solid var(--ctp-surface1);
+  }
+  
+  .orders-table thead {
+    background: linear-gradient(90deg, var(--ctp-surface1), var(--ctp-surface2));
+  }
+  
+  .orders-table thead th {
+    color: var(--ctp-teal);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-size: 0.85rem;
+    border-bottom: 2px solid var(--ctp-teal);
+  }
+  
+  .orders-table tbody tr {
+    transition: all 0.2s ease;
+  }
+  
+  .orders-table tbody tr:nth-child(even) {
+    background: rgba(54, 58, 79, 0.3);
+  }
+  
+  .orders-table tbody tr:hover {
+    background: linear-gradient(90deg, var(--ctp-surface1), rgba(139, 213, 202, 0.1));
+    transform: scale(1.005);
+  }
+  
+  .pnl-positive {
+    color: var(--ctp-green);
+    font-weight: 700;
+  }
+  
+  .pnl-negative {
+    color: var(--ctp-red);
+    font-weight: 700;
+  }
+  
+  .side-long {
+    color: var(--ctp-green);
+    background: rgba(166, 218, 149, 0.1);
+    padding: 0.25rem 0.5rem;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 0.85rem;
+  }
+  
+  .side-short {
+    color: var(--ctp-red);
+    background: rgba(237, 135, 150, 0.1);
+    padding: 0.25rem 0.5rem;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 0.85rem;
+  }
+  
+  .empty-state {
+    text-align: center;
+    padding: 3rem;
+    color: var(--ctp-subtext0);
+  }
+  
+  .empty-state svg {
+    width: 64px;
+    height: 64px;
+    margin-bottom: 1rem;
+    opacity: 0.5;
+  }
+</style>
+
+<h2>Trading Dashboard</h2>
+
+<article class="card">
+  <h3>Account Overview</h3>
+  <div class="trading-stats">
+    <div class="stat-card">
+      <div class="stat-label">Balance</div>
+      <div class="stat-value" id="balance">$N/A</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Available</div>
+      <div class="stat-value" id="available-balance">$N/A</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Global Winrate</div>
+      <div class="stat-value" id="winrate">N/A%</div>
+    </div>
+  </div>
+</article>
+
+<article class="card">
+  <h3>Active Orders</h3>
+  <div class="orders-table-container">
+    <table class="orders-table" id="orders-table">
+      <thead>
+        <tr>
+          <th>Channel</th>
+          <th>Coin</th>
+          <th>Side</th>
+          <th>Margin ($)</th>
+          <th>Entry Price</th>
+          <th>Current Price</th>
+          <th>PnL ($)</th>
+          <th>PnL (%)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- Data will be inserted here by JavaScript -->
+      </tbody>
+    </table>
+    <div id="empty-state" class="empty-state" style="display: none;">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+      </svg>
+      <p>No active orders</p>
+      <small class="muted">Orders will appear here when the trading bot is active</small>
+    </div>
+  </div>
+</article>
+
+{{ initial_data|json_script:"initial-data" }}
+{% endblock %}
