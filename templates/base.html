@@ -10,17 +10,54 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
   <link rel="stylesheet" href="{% static 'bot/css/style.css' %}">
+  <link rel="stylesheet" href="{% static 'bot/css/catppuccin-teal-theme.css' %}">
   <style>
     :root{
-      --brand:#7c6cff;           /* Accent */
-      --brand-2:#0ea5e9;         /* Secondary accent */
-      --bg:#0b0f14;              /* Page background */
-      --surface:#121721;         /* Card surface */
-      --border:#1f2937;          /* Borders */
-      --text:#e5e7eb;            /* Primary text */
-      --muted:#9ca3af;           /* Muted text */
-      --success:#22c55e;
-      --danger:#ef4444;
+      /* Enhanced Catppuccin Macchiato Color Palette with Teal Focus */
+      --ctp-base: #24273a;
+      --ctp-mantle: #1e2030;
+      --ctp-crust: #181926;
+      --ctp-surface0: #363a4f;
+      --ctp-surface1: #494d64;
+      --ctp-surface2: #5b6078;
+      --ctp-overlay0: #6e738d;
+      --ctp-overlay1: #8087a2;
+      --ctp-overlay2: #939ab7;
+      --ctp-subtext0: #a5adcb;
+      --ctp-subtext1: #b7bdf8;
+      --ctp-text: #cad3f5;
+      
+      /* Enhanced Teal Palette */
+      --ctp-teal: #8bd5ca;
+      --ctp-teal-hover: #7dc4b9;
+      --ctp-teal-active: #6fb3a8;
+      --ctp-teal-bright: #9ee9db;
+      --ctp-teal-muted: rgba(139, 213, 202, 0.15);
+      
+      /* Supporting Colors */
+      --ctp-green: #a6da95;
+      --ctp-red: #ed8796;
+      --ctp-blue: #8aadf4;
+      --ctp-lavender: #b7bdf8;
+      --ctp-yellow: #eed49f;
+      --ctp-pink: #f5bde6;
+      --ctp-mauve: #c6a0f6;
+      --ctp-peach: #f5a97f;
+      
+      /* Theme mappings with enhanced teal focus */
+      --brand: var(--ctp-teal);
+      --brand-2: var(--ctp-teal-bright);
+      --brand-hover: var(--ctp-teal-hover);
+      --brand-active: var(--ctp-teal-active);
+      --bg: var(--ctp-base);
+      --surface: var(--ctp-mantle);
+      --border: var(--ctp-surface0);
+      --text: var(--ctp-text);
+      --muted: var(--ctp-subtext0);
+      --success: var(--ctp-green);
+      --danger: var(--ctp-red);
+      --warning: var(--ctp-yellow);
+      --info: var(--ctp-blue);
     }
 
     html[data-theme="dark"]{
@@ -29,37 +66,109 @@
       --pico-color: var(--text);
       --pico-muted-color: var(--muted);
       --pico-primary: var(--brand);
-      --pico-primary-hover: #6a57ff;
+      --pico-primary-hover: var(--brand-hover);
       --pico-secondary: var(--brand-2);
       --pico-muted-border-color: var(--border);
-      --pico-form-element-background-color: #0f141d;
+      --pico-form-element-background-color: var(--ctp-surface0);
       --pico-card-background-color: var(--surface);
       --pico-form-element-active-border-color: var(--brand);
-      --pico-form-element-focus-color: color-mix(in oklab, var(--brand) 50%, white);
+      --pico-form-element-focus-color: var(--ctp-teal-muted);
       --pico-border-radius: 12px;
     }
 
-    body{ font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', Arial, sans-serif; background: radial-gradient(1200px 600px at 100% -10%, rgba(124,108,255,.15), transparent 60%), radial-gradient(1000px 500px at -10% 0%, rgba(14,165,233,.12), transparent 50%), var(--bg); }
-
-    /* Navbar */
-    nav.container-fluid{
-      position: sticky; top: 0; z-index: 50; backdrop-filter: saturate(140%) blur(8px);
-      background: linear-gradient(180deg, rgba(18,23,33,.9), rgba(18,23,33,.6));
-      border-bottom: 1px solid var(--border);
+    /* Enhanced body with better teal gradient background */
+    body{ 
+      font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', Arial, sans-serif; 
+      background: 
+        radial-gradient(ellipse at top left, var(--ctp-teal-muted) 0%, transparent 50%),
+        radial-gradient(ellipse at top right, rgba(138,173,244,.08) 0%, transparent 50%),
+        radial-gradient(ellipse at bottom left, rgba(166,218,149,.05) 0%, transparent 50%),
+        linear-gradient(135deg, var(--bg) 0%, var(--ctp-mantle) 100%);
+      background-attachment: fixed;
+      min-height: 100vh;
     }
-    .brand{ display:flex; gap:.6rem; align-items:center; font-weight:700; letter-spacing:.2px; }
-    .brand svg{ width:22px; height:22px; color:var(--brand); }
 
-    main.container{ max-width: 1100px; }
+    /* Enhanced Navbar with better teal styling */
+    nav.container-fluid{
+      position: sticky; top: 0; z-index: 50; 
+      backdrop-filter: saturate(180%) blur(20px);
+      background: linear-gradient(180deg, 
+        rgba(30,32,48,.95) 0%, 
+        rgba(30,32,48,.85) 50%,
+        rgba(30,32,48,.75) 100%);
+      border-bottom: 2px solid var(--brand);
+      box-shadow: 0 4px 20px rgba(139, 213, 202, 0.1);
+    }
+    
+    .brand{ 
+      display:flex; gap:.8rem; align-items:center; 
+      font-weight:700; letter-spacing:.3px; 
+      color: var(--brand); 
+      text-shadow: 0 2px 8px rgba(139, 213, 202, 0.3);
+    }
+    
+    .brand svg{ 
+      width:24px; height:24px; 
+      color:var(--brand); 
+      filter: drop-shadow(0 2px 4px rgba(139, 213, 202, 0.5));
+    }
 
-    /* Cards & layout */
-    .grid-two{ display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; }
+    /* Enhanced navigation links */
+    nav ul li a {
+      color: var(--ctp-subtext1);
+      text-decoration: none;
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      transition: all 0.2s ease;
+      font-weight: 500;
+    }
+    
+    nav ul li a:hover {
+      color: var(--brand);
+      background: var(--ctp-teal-muted);
+      transform: translateY(-1px);
+    }
+
+    main.container{ 
+      max-width: 1200px; 
+      padding: 2rem 1rem;
+      animation: slide-in-up 0.6s ease-out;
+    }
+
+    /* Enhanced Cards & layout with better teal accents */
+    .grid-two{ display:grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; }
     /* Wider right column for channels on larger screens */
     @media (min-width: 900px){
-      .grid-two.grid-wide-right{ grid-template-columns: minmax(280px, 1fr) minmax(520px, 2fr); }
+      .grid-two.grid-wide-right{ grid-template-columns: minmax(300px, 1fr) minmax(520px, 2fr); }
     }
-    .card{ background: var(--surface); border:1px solid var(--border); border-radius: 14px; padding: 1rem 1.1rem; box-shadow: 0 6px 24px rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.02); }
-    .card h3{ margin-bottom:.25rem; }
+    
+    .card{ 
+      background: linear-gradient(135deg, var(--surface), var(--ctp-surface0)); 
+      border: 1px solid var(--ctp-surface1); 
+      border-radius: 16px; 
+      padding: 1.5rem; 
+      box-shadow: 
+        0 8px 32px rgba(0,0,0,.3), 
+        inset 0 1px 0 rgba(139, 213, 202, 0.1),
+        0 0 0 1px rgba(139, 213, 202, 0.05); 
+      transition: all 0.2s ease;
+    }
+    
+    .card:hover {
+      transform: translateY(-4px);
+      box-shadow: 
+        0 12px 40px rgba(0,0,0,.4), 
+        inset 0 1px 0 rgba(139, 213, 202, 0.15),
+        0 0 0 1px rgba(139, 213, 202, 0.1);
+    }
+    
+    .card h3{ 
+      margin-bottom:.5rem; 
+      color: var(--brand); 
+      font-weight: 600;
+      text-shadow: 0 1px 3px rgba(139, 213, 202, 0.2);
+    }
+    
     .muted{ color: var(--muted); }
 
     /* Lists */
@@ -84,31 +193,108 @@
 
     /* Small helper */
     .copy-btn{ appearance:none; border:0; background:transparent; color: var(--muted); cursor:pointer; padding:.1rem .25rem; border-radius:6px; }
-    .copy-btn:hover{ color: var(--brand); background: rgba(124,108,255,.08); }
+    .copy-btn:hover{ color: var(--brand); background: color-mix(in oklab, var(--brand) 8%, transparent); }
 
-    /* Progress */
-    progress{ width:100%; height: 10px; border-radius: 999px; overflow:hidden; background:#0f172a; border:1px solid var(--border); }
-    progress::-webkit-progress-bar{ background:#0f172a; }
-    progress::-webkit-progress-value{ background: linear-gradient(90deg, var(--brand), var(--brand-2)); }
-    progress::-moz-progress-bar{ background: linear-gradient(90deg, var(--brand), var(--brand-2)); }
+    /* Enhanced progress bars with teal gradients */
+    progress{ 
+      width:100%; height: 12px; border-radius: 999px; overflow:hidden; 
+      background: var(--ctp-surface0); border: 1px solid var(--ctp-surface1); 
+      box-shadow: inset 0 2px 4px rgba(0,0,0,.3);
+    }
+    progress::-webkit-progress-bar{ background: var(--ctp-surface0); }
+    progress::-webkit-progress-value{ 
+      background: linear-gradient(90deg, var(--brand), var(--brand-2), var(--ctp-teal-bright)); 
+      box-shadow: 0 1px 3px rgba(139, 213, 202, 0.5);
+    }
+    progress::-moz-progress-bar{ 
+      background: linear-gradient(90deg, var(--brand), var(--brand-2), var(--ctp-teal-bright)); 
+    }
 
-    /* Confidence themed progress */
-    progress.progress-success::-webkit-progress-value{ background: linear-gradient(90deg, var(--success), color-mix(in oklab, var(--success) 60%, white)); }
-    progress.progress-danger::-webkit-progress-value{ background: linear-gradient(90deg, var(--danger), color-mix(in oklab, var(--danger) 60%, white)); }
-    progress.progress-success::-moz-progress-bar{ background: linear-gradient(90deg, var(--success), color-mix(in oklab, var(--success) 60%, white)); }
-    progress.progress-danger::-moz-progress-bar{ background: linear-gradient(90deg, var(--danger), color-mix(in oklab, var(--danger) 60%, white)); }
+    /* Enhanced confidence themed progress */
+    progress.progress-success::-webkit-progress-value{ 
+      background: linear-gradient(90deg, var(--success), var(--ctp-green), #b8e6a3); 
+    }
+    progress.progress-danger::-webkit-progress-value{ 
+      background: linear-gradient(90deg, var(--danger), var(--ctp-red), #f2a0aa); 
+    }
+    progress.progress-success::-moz-progress-bar{ 
+      background: linear-gradient(90deg, var(--success), var(--ctp-green), #b8e6a3); 
+    }
+    progress.progress-danger::-moz-progress-bar{ 
+      background: linear-gradient(90deg, var(--danger), var(--ctp-red), #f2a0aa); 
+    }
 
     /* Forms */
     form .grid{ display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: .8rem; }
-    fieldset{ border-color: var(--border); background: color-mix(in oklab, var(--surface) 92%, black); }
+    fieldset{ border-color: var(--border); background: color-mix(in oklab, var(--surface) 92%, var(--ctp-crust)); }
 
-    /* Buttons */
-    .btn-group{ display:flex; gap:.6rem; flex-wrap:wrap; }
-    .btn-success{ background: color-mix(in oklab, var(--success) 70%, black); border-color: color-mix(in oklab, var(--success) 60%, black); }
-    .btn-danger{ background: color-mix(in oklab, var(--danger) 70%, black); border-color: color-mix(in oklab, var(--danger) 60%, black); }
+    /* Enhanced badge styling with teal accents */
+    .badge { 
+      background: linear-gradient(135deg, var(--ctp-surface1), var(--ctp-surface2)); 
+      color: var(--brand); 
+      border: 1px solid var(--ctp-surface2);
+      padding: 0.4rem 0.8rem;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      text-shadow: 0 1px 2px rgba(0,0,0,.3);
+      box-shadow: 0 2px 8px rgba(139, 213, 202, 0.2);
+    }
+    
+    /* Enhanced form elements with better teal focus */
+    input, select, textarea {
+      border-color: var(--ctp-surface2) !important;
+      background: linear-gradient(135deg, var(--ctp-surface0), var(--ctp-mantle)) !important;
+      color: var(--ctp-text) !important;
+      border-radius: 10px !important;
+      transition: all 0.2s ease !important;
+    }
+    
+    input:focus, select:focus, textarea:focus {
+      border-color: var(--brand) !important;
+      box-shadow: 0 0 0 3px var(--ctp-teal-muted), inset 0 1px 3px rgba(0,0,0,.2) !important;
+      background: var(--ctp-mantle) !important;
+    }
+    
+    /* Enhanced buttons with better teal styling */
+    button, .button {
+      transition: all 0.2s ease;
+      border-radius: 10px;
+      font-weight: 600;
+    }
+    
+    button:hover, .button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(139, 213, 202, 0.3);
+    }
+    
+    /* Enhanced primary button */
+    button[type="submit"], .btn-primary {
+      background: linear-gradient(135deg, var(--brand), var(--brand-2)) !important;
+      border: none !important;
+      color: var(--ctp-base) !important;
+      text-shadow: 0 1px 2px rgba(0,0,0,.3);
+    }
+    
+    button[type="submit"]:hover, .btn-primary:hover {
+      background: linear-gradient(135deg, var(--ctp-teal-bright), var(--brand)) !important;
+    }
+    
+    /* Enhanced secondary button with better contrast */
+    .secondary {
+      background: linear-gradient(135deg, var(--ctp-surface1), var(--ctp-surface2)) !important;
+      border: 1px solid var(--ctp-overlay0) !important;
+      color: var(--ctp-text) !important;
+    }
+    
+    .secondary:hover {
+      background: linear-gradient(135deg, var(--ctp-surface2), var(--ctp-overlay0)) !important;
+      border-color: var(--brand) !important;
+      color: var(--brand) !important;
+    }
 
     /* Message bubble */
-    .message{ white-space: pre-wrap; background:#0c121b; border:1px solid var(--border); border-radius:12px; padding: .9rem; line-height:1.5; }
+    .message{ white-space: pre-wrap; background: var(--ctp-surface0); border:1px solid var(--border); border-radius:12px; padding: .9rem; line-height:1.5; }
 
     /* Footer */
     footer{ margin-top:2rem; padding:1.2rem 0; border-top:1px solid var(--border); color:var(--muted); font-size:.9rem; }
@@ -122,7 +308,7 @@
     .tooltip::after{
       content: attr(data-tooltip);
       position: absolute; left:50%; bottom: 100%; transform: translate(-50%, -120%);
-      background:#0b0f14; color: var(--muted); border:1px solid var(--border);
+      background: var(--ctp-crust); color: var(--muted); border:1px solid var(--border);
       padding:.25rem .5rem; border-radius:8px; font-size:.75rem; white-space: nowrap;
       opacity:0; pointer-events:none; transition: opacity .15s ease, transform .15s ease;
       box-shadow: 0 6px 24px rgba(0,0,0,.35); z-index: 20;
@@ -135,7 +321,7 @@
 
     /* Toast for copy feedback */
     .toast{ position: fixed; left:50%; bottom:24px; transform: translateX(-50%) translateY(20px);
-      background:#0f172a; border:1px solid var(--border); color: var(--text);
+      background: var(--ctp-surface1); border:1px solid var(--border); color: var(--text);
       padding:.5rem .8rem; border-radius:999px; box-shadow: 0 6px 24px rgba(0,0,0,.35);
       opacity:0; pointer-events:none; transition: opacity .2s ease, transform .2s ease; z-index:1000; }
     .toast.show{ opacity:1; transform: translateX(-50%) translateY(0); }

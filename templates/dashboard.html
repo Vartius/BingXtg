@@ -1,33 +1,52 @@
 {% extends 'base.html' %}
 {% block content %}
 <style>
-  /* Channels pane layout and styling */
-  ul.channel-list { margin-top: .6rem; }
+  /* Enhanced Channels pane layout and styling with better teal accents */
+  ul.channel-list { margin-top: .8rem; }
   li.channel-item {
     display: grid;
     grid-template-columns: 1.6fr 1fr;
-    gap: 1rem;
+    gap: 1.2rem;
     align-items: center;
-    padding: .6rem 0;
-    border-bottom: 1px solid rgba(255,255,255,.08);
+    padding: .8rem 0;
+    border-bottom: 1px solid rgba(139, 213, 202, 0.1);
+    transition: all 0.2s ease;
   }
   li.channel-item:last-child { border-bottom: 0; }
+  li.channel-item:hover {
+    background: rgba(139, 213, 202, 0.05);
+    border-radius: 8px;
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+  }
 
-  .channel-left { cursor: pointer; user-select: none; }
-  .channel-left:hover .channel-name { text-decoration: underline; }
+  .channel-left { 
+    cursor: pointer; 
+    user-select: none; 
+    transition: all 0.2s ease;
+  }
+  
+  .channel-left:hover .channel-name { 
+    text-decoration: underline;
+    color: var(--ctp-teal-bright);
+  }
 
   .channel-name {
     font-weight: 600;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    color: var(--ctp-text);
+    transition: color 0.2s ease;
   }
+  
   .channel-sub {
     font-size: .875rem;
-    color: var(--muted-color, #9aa4b2);
+    color: var(--ctp-subtext0, #a5adcb);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    margin-top: 0.2rem;
   }
 
   .channel-progress .meta {
@@ -36,13 +55,40 @@
     gap: .8rem;
     font-size: .85rem;
     margin-bottom: .4rem;
-    color: var(--muted-color, #9aa4b2);
+    color: var(--ctp-subtext0, #a5adcb);
+    font-weight: 500;
   }
-  .channel-progress progress { width: 100%; height: .6rem; }
+  
+  .channel-progress .meta span:first-child {
+    color: var(--ctp-teal);
+  }
+  
+  .channel-progress progress { 
+    width: 100%; 
+    height: .8rem; 
+    border-radius: 6px;
+    background: var(--ctp-surface0);
+    border: 1px solid var(--ctp-surface1);
+  }
 
   @media (max-width: 800px) {
     li.channel-item { grid-template-columns: 1fr; align-items: start; }
-    .channel-progress { margin-top: .2rem; }
+    .channel-progress { margin-top: .4rem; }
+  }
+  
+  /* Enhanced stats badges */
+  .badge {
+    background: linear-gradient(135deg, var(--ctp-teal), var(--ctp-teal-bright));
+    color: var(--ctp-base);
+    font-weight: 700;
+    text-shadow: 0 1px 2px rgba(0,0,0,.3);
+    box-shadow: 0 2px 8px rgba(139, 213, 202, 0.3);
+  }
+  
+  /* Enhanced message styling */
+  .card[style*="border-color"] {
+    border-color: var(--ctp-teal) !important;
+    box-shadow: 0 0 20px rgba(139, 213, 202, 0.2);
   }
 </style>
 <h2>Dashboard</h2>
