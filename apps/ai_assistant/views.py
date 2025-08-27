@@ -159,10 +159,12 @@ def label(request: HttpRequest) -> HttpResponse:
 
     # Try to load model once if not already loaded
     try:
-        if getattr(clf, "model", None) is None:
-            clf.load_model(str(MODEL_DIR))
-    except Exception:
-        pass
+        if clf.classifier_model is None or clf.ner_model is None:
+            model_loaded = clf.load_model(str(MODEL_DIR))
+            if not model_loaded:
+                logger.warning("Failed to load AI models for extraction")
+    except Exception as e:
+        logger.exception(f"Error loading AI models: {e}")
 
     # Round-robin selection across available channels
     channels = db.get_available_channels()
