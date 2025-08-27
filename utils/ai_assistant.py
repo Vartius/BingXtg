@@ -725,34 +725,21 @@ class ActiveLearningManager:
     def suggest_next_messages(self, n_suggestions: int = 5) -> List[Dict[str, Any]]:
         logger.info(f"Requesting {n_suggestions} suggestions for active learning.")
         try:
-            unlabeled_messages = self.db_manager.get_unlabeled_messages(limit=200)
+            unlabeled_messages = self.db_manager.get_unlabeled_messages(limit=500)
             if not unlabeled_messages:
                 return []
+
             message_texts = [msg["message"] for msg in unlabeled_messages]
-
-            uncertain_results: List[Tuple[int, str, float]] = []
-            if self.classifier.model:
-                for i, (_pred, confidence) in enumerate(
-                    self.classifier.predict_batch(message_texts)
-                ):
-                    if confidence < self.classifier.confidence_threshold:
-                        uncertain_results.append((i, message_texts[i], confidence))
-                uncertain_results.sort(key=lambda x: x[2])
-                uncertain_results = uncertain_results[:n_suggestions]
-            else:
-                import random
-
-                idxs = random.sample(
-                    range(len(message_texts)), min(n_suggestions, len(message_texts))
+            uncertain_indices = {
+                idx
+                for idx, _, _ in self.classifier.get_uncertain_samples(
+                    message_texts, n_suggestions
                 )
-                uncertain_results = [(i, message_texts[i], 0.0) for i in idxs]
+            }
 
-            suggestions = []
-            for idx, _t, conf in uncertain_results:
-                s = dict(unlabeled_messages[idx])
-                s["confidence"] = conf
-                suggestions.append(s)
-            return suggestions
+            return [
+                dict(unlabeled_messages[i]) for i in sorted(list(uncertain_indices))
+            ]
         except Exception:
             logger.exception("Failed to suggest next messages for labeling.")
             return []
