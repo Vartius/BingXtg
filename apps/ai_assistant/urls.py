@@ -1,5 +1,6 @@
 from django.urls import path
 from . import views
+# !CHECK AI GENERATED BULLSHIT
 
 urlpatterns = [
     path("", views.dashboard, name="dashboard"),

@@ -35,6 +35,7 @@ except (ValueError, TypeError) as e:
     sys.exit(1)
 
 
+# !CHECK AI GENERATED BULLSHIT
 def place_order(channel_id: str, coin: str, side: str, is_simulation: bool) -> bool:
     """
     Places a new order based on a signal, either in simulation or live mode.
@@ -116,6 +117,7 @@ def place_order(channel_id: str, coin: str, side: str, is_simulation: bool) -> b
     return save_state(state)
 
 
+# !CHECK AI GENERATED BULLSHIT
 def _update_open_orders(state: dict, winrate_data: dict) -> tuple[dict, dict]:
     """Helper function to process and update all open orders."""
     orders_to_close = []
@@ -158,6 +160,7 @@ def _update_open_orders(state: dict, winrate_data: dict) -> tuple[dict, dict]:
     return state, winrate_data
 
 
+# !CHECK AI GENERATED BULLSHIT
 def _update_display_data(state: dict, channels: dict, winrate_data: dict):
     """Prepares and saves data, then pushes it to connected clients."""
     table_orders = []
@@ -216,6 +219,7 @@ def _update_display_data(state: dict, channels: dict, winrate_data: dict):
     save_winrate(winrate_data)
 
 
+# !CHECK AI GENERATED BULLSHIT
 def updater_thread_worker():
     """
     The main worker loop that runs in a separate thread. It periodically updates

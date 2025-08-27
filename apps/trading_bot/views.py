@@ -4,6 +4,7 @@ from django.http import JsonResponse
 from loguru import logger
 
 
+# !CHECK AI GENERATED BULLSHIT
 def dashboard(request):
     """Renders the main dashboard page with initial data."""
     initial_data = {}
@@ -31,6 +32,7 @@ def dashboard(request):
     )
 
 
+# !CHECK AI GENERATED BULLSHIT
 def dashboard_data(request):
     """
     REST API endpoint that returns the current dashboard data.

@@ -6,6 +6,7 @@ ai_classifier: Any = None
 al_manager: Any = None
 
 
+# !CHECK AI GENERATED BULLSHIT
 def init_services(db_path: str) -> None:
     """Initialize singletons once. Safe to call multiple times."""
     global db_manager, ai_classifier, al_manager

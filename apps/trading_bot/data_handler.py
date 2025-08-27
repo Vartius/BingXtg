@@ -12,6 +12,7 @@ from typing import Any, Dict, Optional
 _file_lock = threading.Lock()
 
 
+# !CHECK AI GENERATED BULLSHIT
 def read_json(file_path: str) -> Optional[Dict | list]:
     """
     Safely reads and decodes a JSON file.
@@ -41,6 +42,7 @@ def read_json(file_path: str) -> Optional[Dict | list]:
             return None
 
 
+# !CHECK AI GENERATED BULLSHIT
 def write_json(file_path: str, data: Any) -> bool:
     """
     Safely writes data to a JSON file with pretty printing.
@@ -68,6 +70,7 @@ def write_json(file_path: str, data: Any) -> bool:
 
 
 # --- State File (state.json) ---
+# !CHECK AI GENERATED BULLSHIT
 def get_state() -> Optional[Dict | None | list]:
     """Reads the primary state file (state.json)."""
     data = read_json("data/state.json")
@@ -77,12 +80,14 @@ def get_state() -> Optional[Dict | None | list]:
     return data
 
 
+# !CHECK AI GENERATED BULLSHIT
 def save_state(data: Dict) -> bool:
     """Saves data to the primary state file (state.json)."""
     return write_json("data/state.json", data)
 
 
 # --- Winrate File (winrate.json) ---
+# !CHECK AI GENERATED BULLSHIT
 def get_winrate() -> Optional[Dict | None | list]:
     """Reads the channel winrate data file (winrate.json)."""
     data = read_json("data/winrate.json")
@@ -92,12 +97,14 @@ def get_winrate() -> Optional[Dict | None | list]:
     return data
 
 
+# !CHECK AI GENERATED BULLSHIT
 def save_winrate(data: Dict) -> bool:
     """Saves data to the channel winrate data file (winrate.json)."""
     return write_json("data/winrate.json", data)
 
 
 # --- Channels File (channels.json) ---
+# !CHECK AI GENERATED BULLSHIT
 def get_channels() -> Optional[Dict | None | list]:
     """Reads the Telegram channel configuration file (channels.json)."""
     data = read_json("data/channels.json")
@@ -108,6 +115,7 @@ def get_channels() -> Optional[Dict | None | list]:
 
 
 # --- Table Data File (table.json) ---
+# !CHECK AI GENERATED BULLSHIT
 def save_table(data: Dict) -> bool:
     """Saves the data used by the GUI to table.json."""
     return write_json("data/table.json", data)

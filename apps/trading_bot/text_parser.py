@@ -8,6 +8,7 @@ from loguru import logger
 from typing import Optional, List, Dict
 
 
+# !CHECK AI GENERATED BULLSHIT
 def parse_message_for_signal(
     text: str, channel_id: str, channels_config: Dict
 ) -> Optional[List[str]]:

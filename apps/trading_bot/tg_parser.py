@@ -39,6 +39,7 @@ IS_SIMULATION = False
 CHANNELS_CONFIG: Dict = {}
 
 
+# !CHECK AI GENERATED BULLSHIT
 def _load_channel_ids() -> List[int]:
     """Loads channel IDs from the JSON config file."""
     global CHANNELS_CONFIG
@@ -58,6 +59,7 @@ logger.info(f"Loaded {len(CHAT_IDS)} channels from configuration.")
 
 
 # --- Message Handlers ---
+# !CHECK AI GENERATED BULLSHIT
 @app.on_message(filters.chat(CHAT_IDS))  # type: ignore
 async def message_handler(client: Client, message: Message):
     """
@@ -108,6 +110,7 @@ async def message_handler(client: Client, message: Message):
 
 
 # --- Application Startup ---
+# !CHECK AI GENERATED BULLSHIT
 async def main_telegram_loop():
     """Starts the Telegram client and keeps it running."""
     global CHAT_IDS
@@ -153,6 +156,7 @@ async def main_telegram_loop():
         logger.warning("Telegram client stopped.")
 
 
+# !CHECK AI GENERATED BULLSHIT
 def start_telegram_parser(is_simulation: bool):
     """
     Initializes and starts all components of the bot.

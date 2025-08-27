@@ -25,6 +25,7 @@ except (ValueError, TypeError) as e:
     sys.exit(1)
 
 
+# !CHECK AI GENERATED BULLSHIT
 @lru_cache(maxsize=1)
 def get_bingx_client() -> BingxAPI:
     """
@@ -39,6 +40,7 @@ def get_bingx_client() -> BingxAPI:
     return BingxAPI(APIKEY, SECRETKEY, timestamp="local")
 
 
+# !CHECK AI GENERATED BULLSHIT
 def get_price(coin: str) -> float | None:
     """
     Gets the latest price of a specified coin ticker from BingX.
@@ -62,6 +64,7 @@ def get_price(coin: str) -> float | None:
         return None
 
 
+# !CHECK AI GENERATED BULLSHIT
 def get_balance() -> tuple[float, float] | tuple[None, None]:
     """
     Gets the total and available balance from the BingX perpetual account.
@@ -85,6 +88,7 @@ def get_balance() -> tuple[float, float] | tuple[None, None]:
         return None, None
 
 
+# !CHECK AI GENERATED BULLSHIT
 def set_order_bingx(coin: str, direction: str, percent: float) -> bool:
     """
     Places a market order on BingX with pre-configured leverage, TP, and SL.

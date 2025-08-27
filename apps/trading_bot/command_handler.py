@@ -17,6 +17,7 @@ from apps.trading_bot.order_handler import place_order
 # --- DataFrame Styling Functions ---
 
 
+# !CHECK AI GENERATED BULLSHIT
 def _style_table(df: pd.DataFrame):
     """Applies a consistent style to the data table for image export."""
     styles = [
@@ -49,6 +50,7 @@ def _style_table(df: pd.DataFrame):
 # --- Command Handlers ---
 
 
+# !CHECK AI GENERATED BULLSHIT
 async def handle_chats_check(client: Client, message: Message, chat_ids: list):
     """Verifies the bot can access the configured channels."""
     titles = []
@@ -64,6 +66,7 @@ async def handle_chats_check(client: Client, message: Message, chat_ids: list):
     )
 
 
+# !CHECK AI GENERATED BULLSHIT
 async def handle_list_channels(message: Message):
     """Lists the channels configured in channels.json."""
     try:
@@ -80,6 +83,7 @@ async def handle_list_channels(message: Message):
         await message.reply_text("Error reading `channels.json`.")
 
 
+# !CHECK AI GENERATED BULLSHIT
 async def handle_stop(message: Message):
     """Stops the bot gracefully."""
     logger.warning(f"Stop command received from {message.chat.id}. Shutting down.")
@@ -87,6 +91,7 @@ async def handle_stop(message: Message):
     sys.exit(0)  # Exits the entire application
 
 
+# !CHECK AI GENERATED BULLSHIT
 async def handle_add_test_orders(is_simulation: bool):
     """Adds a batch of random test orders for demonstration."""
     logger.info("Adding a batch of test orders.")
@@ -103,6 +108,7 @@ async def handle_add_test_orders(is_simulation: bool):
     logger.success("Finished adding test orders.")
 
 
+# !CHECK AI GENERATED BULLSHIT
 async def handle_get_data(client: Client, message: Message):
     """Generates and sends an image of the current trading data table."""
     logger.info(f"Generating data table image for {message.chat.id}.")
@@ -144,6 +150,7 @@ async def handle_get_data(client: Client, message: Message):
         await message.reply_text("An error occurred while generating the data image.")
 
 
+# !CHECK AI GENERATED BULLSHIT
 async def handle_command(
     command: str, client: Client, message: Message, chat_ids: list, is_simulation: bool
 ):

@@ -3,6 +3,7 @@ Configuration utilities for the project.
 Loads configuration from environment variables.
 """
 
+# !CHECK AI GENERATED BULLSHIT
 import os
 import logging
 from pathlib import Path

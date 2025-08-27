@@ -23,6 +23,7 @@ except (ValueError, TypeError) as e:
     sys.exit(1)
 
 
+# !CHECK AI GENERATED BULLSHIT
 def initialize_new_state():
     """Initializes and returns a fresh state dictionary for a new session."""
     logger.info("Initializing a new trading session.")
@@ -34,6 +35,7 @@ def initialize_new_state():
     }
 
 
+# !CHECK AI GENERATED BULLSHIT
 def continue_existing_state(state):
     """Prepares an existing state for a continued session."""
     logger.info(f"Continuing existing session with balance: {state['balance']:.2f}")
@@ -42,6 +44,7 @@ def continue_existing_state(state):
     return state
 
 
+# !CHECK AI GENERATED BULLSHIT
 def setup_session(is_simulation: bool):
     """
     Sets up the user session by either loading existing data or creating a new session.
@@ -120,11 +123,13 @@ def setup_session(is_simulation: bool):
     start_telegram_parser(is_simulation)
 
 
+# !CHECK AI GENERATED BULLSHIT
 class Command(BaseCommand):
     help = (
         "Starts the trading bot, including the Telegram client and background updater."
     )
 
+    # !CHECK AI GENERATED BULLSHIT
     def handle(self, *args, **options):
         logger.add("logs.log", rotation="10 MB", compression="zip")
 

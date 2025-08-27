@@ -1,6 +1,7 @@
 from django.apps import AppConfig
 
 
+# !CHECK AI GENERATED BULLSHIT
 class AiAssistantConfig(AppConfig):
     default_auto_field = "django.db.models.BigAutoField"
     name = "apps.ai_assistant"
