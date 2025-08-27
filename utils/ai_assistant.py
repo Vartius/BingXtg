@@ -50,17 +50,17 @@ class TextPreprocessor:
         return text
 
 
-# ============================ NER LABELS ============================
+# ============================ LABEL MAPPINGS ============================
 NER_LABELS: List[str] = [
     "O",
     "B-PAIR",
     "I-PAIR",
-    "B-SL",
-    "I-SL",
-    "B-LEV",
-    "I-LEV",
-    "B-TGT",
-    "I-TGT",
+    "B-STOP_LOSS",
+    "I-STOP_LOSS",
+    "B-LEVERAGE",
+    "I-LEVERAGE",
+    "B-TAKE_PROFIT",
+    "I-TAKE_PROFIT",
     "B-ENTRY",
     "I-ENTRY",
 ]
