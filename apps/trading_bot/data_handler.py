@@ -74,9 +74,6 @@ def write_json(file_path: str, data: Any) -> bool:
 def get_state() -> Optional[Dict | None | list]:
     """Reads the primary state file (state.json)."""
     data = read_json("data/state.json")
-    if data is None:
-        logger.warning("State file not found or invalid.")
-        return None
     return data
 
 

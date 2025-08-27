@@ -123,13 +123,11 @@ def setup_session(is_simulation: bool):
     start_telegram_parser(is_simulation)
 
 
-# !CHECK AI GENERATED BULLSHIT
 class Command(BaseCommand):
     help = (
         "Starts the trading bot, including the Telegram client and background updater."
     )
 
-    # !CHECK AI GENERATED BULLSHIT
     def handle(self, *args, **options):
         logger.add("logs.log", rotation="10 MB", compression="zip")
 
@@ -141,11 +139,9 @@ class Command(BaseCommand):
         choice = input("Select an option: ")
 
         if choice == "1":
-            simulate = False
-            setup_session(is_simulation=simulate)
+            setup_session(is_simulation=False)
         elif choice == "2":
-            simulate = True
-            setup_session(is_simulation=simulate)
+            setup_session(is_simulation=True)
         else:
             logger.info("Exiting application.")
             sys.exit(0)

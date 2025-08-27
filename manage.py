@@ -5,7 +5,6 @@ import os
 import sys
 
 
-# !CHECK AI GENERATED BULLSHIT
 def main():
     """Run administrative tasks."""
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "bingxtg_project.settings")
