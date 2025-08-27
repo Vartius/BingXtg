@@ -66,29 +66,40 @@ DIRECTION_LABEL2ID = {"none": 0, "long": 1, "short": 2}
 DIRECTION_ID2LABEL = {v: k for k, v in DIRECTION_LABEL2ID.items()}
 
 
-class MultiTaskDistilBert(DistilBertPreTrainedModel):
-    """Single shared DistilBERT body with three heads: signal, direction, NER."""
+# ============================ CUSTOM MODELS ============================
+class ContextPooler(nn.Module):
+    """ContextPooler for DeBERTa-v2/v3, which takes the first token's hidden state."""
 
-    def __init__(
-        self,
-        config,
-        num_labels_signal: int = 2,
-        num_labels_direction: int = 3,
-        num_ner_labels: int = len(NER_LABELS),
-    ):
+    def __init__(self, config):
+        super().__init__()
+        self.dense = nn.Linear(config.hidden_size, config.hidden_size)
+        self.dropout = nn.Dropout(config.hidden_dropout_prob)
+        self.output_dim = config.hidden_size
+
+    def forward(self, hidden_states):
+        context_token = hidden_states[:, 0]
+        pooled_output = self.dense(context_token)
+        pooled_output = nn.GELU()(pooled_output)
+        pooled_output = self.dropout(pooled_output)
+        return pooled_output
+
+
+class SignalDirectionDeberta(DebertaV2PreTrainedModel):
+    """DeBERTa-v3 model with two classification heads for signal and direction detection."""
+
+    def __init__(self, config):
         super().__init__(config)
-        self.num_labels_signal = num_labels_signal
-        self.num_labels_direction = num_labels_direction
-        self.num_ner_labels = num_ner_labels
+        self.num_labels_signal = 2
+        self.num_labels_direction = len(DIRECTION_LABEL2ID)
 
-        self.distilbert = DistilBertModel(config)
-        hidden = config.dim
-        self.dropout = nn.Dropout(config.seq_classif_dropout)
+        self.deberta = DebertaV2Model(config)
+        self.pooler = ContextPooler(config)
+        self.dropout = nn.Dropout(config.hidden_dropout_prob)
 
-        # Heads
-        self.signal_head = nn.Linear(hidden, num_labels_signal)
-        self.direction_head = nn.Linear(hidden, num_labels_direction)
-        self.ner_head = nn.Linear(hidden, num_ner_labels)
+        self.signal_head = nn.Linear(self.pooler.output_dim, self.num_labels_signal)
+        self.direction_head = nn.Linear(
+            self.pooler.output_dim, self.num_labels_direction
+        )
 
         self.post_init()
 
@@ -96,107 +107,74 @@ class MultiTaskDistilBert(DistilBertPreTrainedModel):
         self,
         input_ids=None,
         attention_mask=None,
+        token_type_ids=None,
         labels_signal=None,
         labels_direction=None,
-        labels_ner=None,
         **kwargs,
     ):
-        out = self.distilbert(input_ids=input_ids, attention_mask=attention_mask)
-        seq = out.last_hidden_state  # (B, T, H)
-        # Mean pool over attention_mask
-        if attention_mask is not None:
-            mask = attention_mask.unsqueeze(-1)  # (B, T, 1)
-            summed = (seq * mask).sum(dim=1)
-            lengths = mask.sum(dim=1).clamp(min=1)
-            pooled = summed / lengths
-        else:
-            pooled = seq[:, 0]
+        encoder_out = self.deberta(
+            input_ids=input_ids,
+            attention_mask=attention_mask,
+            token_type_ids=token_type_ids,
+        )
+        pooled_output = self.pooler(encoder_out.last_hidden_state)
+        pooled_output = self.dropout(pooled_output)
 
-        pooled = self.dropout(pooled)
-        seq_d = self.dropout(seq)
-
-        logits_signal = self.signal_head(pooled)
-        logits_direction = self.direction_head(pooled)
-        logits_ner = self.ner_head(seq_d)
+        logits_signal = self.signal_head(pooled_output)
+        logits_direction = self.direction_head(pooled_output)
 
         loss = None
-        losses: Dict[str, torch.Tensor] = {}
-        if labels_signal is not None:
+        if labels_signal is not None and labels_direction is not None:
             loss_fct = nn.CrossEntropyLoss()
-            losses["signal"] = loss_fct(
+            loss_signal = loss_fct(
                 logits_signal.view(-1, self.num_labels_signal), labels_signal.view(-1)
             )
-        if labels_direction is not None:
-            loss_fct = nn.CrossEntropyLoss()
-            losses["direction"] = loss_fct(
+            loss_direction = loss_fct(
                 logits_direction.view(-1, self.num_labels_direction),
                 labels_direction.view(-1),
             )
-        if labels_ner is not None:
-            loss_fct = nn.CrossEntropyLoss(ignore_index=-100)
-            losses["ner"] = loss_fct(
-                logits_ner.view(-1, self.num_ner_labels), labels_ner.view(-1)
-            )
-        if losses:
-            # Weight NER a bit higher (sequence-rich), adjust as needed
-            loss = (
-                1.0 * losses.get("signal", 0.0)
-                + 1.0 * losses.get("direction", 0.0)
-                + 1.5 * losses.get("ner", 0.0)
-            )
+            loss = loss_signal + loss_direction
 
         return {
             "loss": loss,
             "logits_signal": logits_signal,
             "logits_direction": logits_direction,
-            "logits_ner": logits_ner,
         }
 
 
-class MultiTaskTrainer(Trainer):
-    """Custom Trainer that reads our three label keys and sums losses."""
+# ============================ CUSTOM TRAINERS ============================
+class ClassifierTrainer(Trainer):
+    """Custom Trainer for the dual-head SignalDirectionDeberta model."""
 
     def compute_loss(
-        self,
-        model,
-        inputs,
-        return_outputs=False,
-        num_items_in_batch: Optional[torch.Tensor] = None,
+        self, model, inputs, return_outputs=False, num_items_in_batch=None
     ):
         labels_signal = inputs.pop("labels_signal", None)
         labels_direction = inputs.pop("labels_direction", None)
-        labels_ner = inputs.pop("labels_ner", None)
         outputs = model(
             **inputs,
             labels_signal=labels_signal,
             labels_direction=labels_direction,
-            labels_ner=labels_ner,
         )
         loss = outputs.get("loss")
         return (loss, outputs) if return_outputs else loss
 
 
-@dataclass
-class MTExample:
-    text: str
-    label_signal: int
-    label_direction: int
-    labels_ner: List[int]
-
-
+# ============================ MAIN AI CLASS ============================
 class AIClassifier:
-    """AI classifier with a DistilBERT backbone and multi-head outputs."""
+    """AI system for trading signal extraction using DeBERTa and XLM-RoBERTa."""
 
     def __init__(
         self,
-        model_name: str = "distilbert-base-multilingual-cased",
+        classifier_model_name: str = "microsoft/deberta-v3-base",
+        ner_model_name: str = "xlm-roberta-base",
         db_path: str = "messages.db",
         db_manager: Optional[DatabaseManager] = None,
         confidence_threshold: Optional[float] = None,
     ):
-        self.model_name = model_name
+        self.classifier_model_name = classifier_model_name
+        self.ner_model_name = ner_model_name
         self.preprocessor = TextPreprocessor()
-        # Allow injecting singleton DB manager to avoid extra connections
         self.db_manager = (
             db_manager if db_manager is not None else DatabaseManager(db_path)
         )
