@@ -236,7 +236,16 @@ def label(request: HttpRequest) -> HttpResponse:
                 logger.info(
                     f"UI Extract (extended): channel={item['channel_id']} id={item['id']} extracted={ai_extracted}"
                 )
-            except Exception:
+                # Add debug logging for template data
+                if ai_extracted:
+                    logger.info(f"AI extracted data for template: {ai_extracted}")
+                    # Convert targets list to JSON string for JavaScript consumption
+                    if ai_extracted.get("targets") and isinstance(ai_extracted["targets"], list):
+                        ai_extracted["targets_json"] = json.dumps(ai_extracted["targets"])
+                else:
+                    logger.warning("AI extraction returned empty result")
+            except Exception as e:
+                logger.exception(f"Error during AI extraction: {e}")
                 ai_extracted = None
         except Exception:
             ai = None
