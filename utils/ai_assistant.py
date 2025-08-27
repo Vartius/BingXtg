@@ -905,3 +905,10 @@ class ActiveLearningManager:
         except Exception:
             logger.exception("Failed to suggest next messages for labeling.")
             return []
+
+    def get_training_recommendations(self) -> Dict[str, Any]:
+        try:
+            return self.db_manager.get_training_stats()
+        except Exception:
+            logger.exception("Failed to get training recommendations.")
+            return {}
