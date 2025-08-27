@@ -76,9 +76,32 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // --- Initial Data Load ---
-    const initialData = JSON.parse(document.getElementById('initial-data').textContent);
-    console.log('Initial data loaded:', initialData);
-    updateUI(initialData);
+    const initialDataElement = document.getElementById('initial-data');
+    if (initialDataElement) {
+        try {
+            const initialData = JSON.parse(initialDataElement.textContent);
+            console.log('Initial data loaded:', initialData);
+            updateUI(initialData);
+        } catch (error) {
+            console.error('Error parsing initial data:', error);
+            const defaultData = {
+                orders: [],
+                balance: 0.0,
+                available_balance: 0.0,
+                winrate: 0.0
+            };
+            updateUI(defaultData);
+        }
+    } else {
+        console.warn('Initial data element not found, using default data');
+        const defaultData = {
+            orders: [],
+            balance: 0.0,
+            available_balance: 0.0,
+            winrate: 0.0
+        };
+        updateUI(defaultData);
+    }
 
     let fallbackInterval;
     let websocketConnected = false;
