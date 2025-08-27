@@ -654,7 +654,7 @@ class AIClassifier:
             "pair": None,
             "entry": None,
             "stop_loss": None,
-            "take_profit": [],
+            "targets": [],  # Changed from take_profit to targets
             "leverage": None,
         }
 
@@ -662,8 +662,15 @@ class AIClassifier:
             return result
 
         # Step 2: Extract Direction
-        dir_pred = torch.argmax(classifier_out["logits_direction"], dim=-1).item()
-        result["direction"] = DIRECTION_ID2LABEL.get(dir_pred, "none")
+        dir_pred = int(torch.argmax(classifier_out["logits_direction"], dim=-1).item())
+        direction_label = DIRECTION_ID2LABEL.get(dir_pred, "none")
+        # Map to form values: LONG=0, SHORT=1, none=None
+        if direction_label == "long":
+            result["direction"] = 0
+        elif direction_label == "short":
+            result["direction"] = 1
+        else:
+            result["direction"] = None
 
         # Step 3: Extract NER entities
         ner_enc = self.ner_tokenizer(
@@ -675,15 +682,13 @@ class AIClassifier:
         )
         # Send NER tensors to the same device as the NER model (kept on CPU to avoid OOM)
         ner_device = next(self.ner_model.parameters()).device
-        ner_enc = {k: v.to(ner_device) for k, v in ner_enc.items()}
+        ner_enc_for_model = {k: v.to(ner_device) for k, v in ner_enc.items()}
 
         self.ner_model.eval()
         with torch.no_grad():
-            ner_out = self.ner_model(**ner_enc)
+            ner_out = self.ner_model(**ner_enc_for_model)
 
-        entities = self._decode_ner_predictions(
-            {k: v.to("cpu") for k, v in ner_enc.items()}, ner_out.logits.to("cpu")
-        )
+        entities = self._decode_ner_predictions(ner_enc, ner_out.logits.to("cpu"))
 
         # Step 4: Populate result with cleaned entities
         result["pair"] = entities.get("PAIR", [None])[0]
@@ -700,7 +705,7 @@ class AIClassifier:
         except (TypeError, ValueError):
             pass
         try:
-            result["take_profit"] = [
+            result["targets"] = [  # Changed from take_profit to targets
                 float(tp) for tp in entities.get("TAKE_PROFIT", [])
             ]
         except (TypeError, ValueError):
