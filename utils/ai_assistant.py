@@ -574,23 +574,30 @@ class AIClassifier:
             conf, pred = torch.max(probs, dim=-1)
             return list(zip(pred.cpu().tolist(), conf.cpu().tolist()))
 
-    def _decode_ner_predictions(self, encodings, logits) -> Dict[str, List[Any]]:
+    def _decode_ner_predictions(self, ner_encoding, logits) -> Dict[str, List[Any]]:
         """Decodes NER logits into a dictionary of entities."""
         predictions = torch.argmax(logits, dim=2)[0].cpu().tolist()
-        tokens = self.ner_tokenizer.convert_ids_to_tokens(encodings["input_ids"][0])
+        
+        # Get input_ids properly - handle both tensor and list cases
+        if torch.is_tensor(ner_encoding["input_ids"]):
+            input_ids = ner_encoding["input_ids"][0].cpu().tolist() if ner_encoding["input_ids"].dim() > 1 else ner_encoding["input_ids"].cpu().tolist()
+        else:
+            input_ids = ner_encoding["input_ids"][0] if isinstance(ner_encoding["input_ids"][0], list) else ner_encoding["input_ids"]
+        
+        tokens = self.ner_tokenizer.convert_ids_to_tokens(input_ids)
 
         entities, current_entity = {}, []
         for i, pred_id in enumerate(predictions):
-            word_id = encodings.word_ids(batch_index=0)[i]
-            if word_id is None:
-                continue  # Skip special tokens
+            # Skip special tokens by checking token types instead of word_ids
+            if i >= len(tokens) or tokens[i] in ['<s>', '</s>', '<pad>', '[CLS]', '[SEP]', '[PAD]']:
+                continue
 
             label = self.ner_model.config.id2label[pred_id]
             if label.startswith("B-"):
                 if current_entity:
-                    entities.setdefault(current_entity[0], []).append(
-                        "".join(t for _, t in current_entity[1:]).replace(" ", "")
-                    )
+                    entity_text = "".join(t.replace("▁", " ").replace("##", "") for _, t in current_entity[1:]).strip()
+                    if entity_text:
+                        entities.setdefault(current_entity[0], []).append(entity_text)
                 current_entity = [label[2:], (i, tokens[i])]
             elif (
                 label.startswith("I-")
@@ -600,14 +607,17 @@ class AIClassifier:
                 current_entity.append((i, tokens[i]))
             else:
                 if current_entity:
-                    entities.setdefault(current_entity[0], []).append(
-                        "".join(t for _, t in current_entity[1:]).replace(" ", "")
-                    )
+                    entity_text = "".join(t.replace("▁", " ").replace("##", "") for _, t in current_entity[1:]).strip()
+                    if entity_text:
+                        entities.setdefault(current_entity[0], []).append(entity_text)
                 current_entity = []
+        
+        # Handle final entity if exists
         if current_entity:
-            entities.setdefault(current_entity[0], []).append(
-                "".join(t for _, t in current_entity[1:]).replace(" ", "")
-            )
+            entity_text = "".join(t.replace("▁", " ").replace("##", "") for _, t in current_entity[1:]).strip()
+            if entity_text:
+                entities.setdefault(current_entity[0], []).append(entity_text)
+        
         return entities
 
     def extract_signal_fields(self, text: str) -> Dict[str, Any]:
