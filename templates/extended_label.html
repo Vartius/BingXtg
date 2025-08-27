@@ -177,7 +177,7 @@
   data-ai-entry="{% if ai_extracted and ai_extracted.entry %}{{ ai_extracted.entry }}{% endif %}"
   data-ai-leverage="{% if ai_extracted and ai_extracted.leverage %}{{ ai_extracted.leverage }}{% endif %}"
   data-ai-stop-loss="{% if ai_extracted and ai_extracted.stop_loss %}{{ ai_extracted.stop_loss }}{% endif %}"
-  data-ai-targets='{% if ai_extracted and ai_extracted.targets %}{{ ai_extracted.targets|escapejs }}{% endif %}'
+  data-ai-targets='{% if ai_extracted and ai_extracted.targets_json %}{{ ai_extracted.targets_json|safe }}{% endif %}'
 ></div>
 
 <script>
