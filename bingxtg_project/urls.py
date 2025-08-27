@@ -16,3 +16,8 @@ if settings.DEBUG:
     urlpatterns += static(
         settings.STATIC_URL, document_root=settings.STATICFILES_DIRS[0]
     )
+    # Also serve from static root if it exists
+    import os
+
+    if os.path.exists(settings.STATIC_ROOT):
+        urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
