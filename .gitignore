@@ -27,3 +27,4 @@ ai_model/
 .github/
 regexGenAi/
 staticfiles/
+*.session*
