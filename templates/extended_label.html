@@ -67,6 +67,11 @@
             {% if ai_extracted.stop_loss %}
               <span class="field-tag">SL: {{ ai_extracted.stop_loss }}</span>
             {% endif %}
+            {% if ai_extracted.targets %}
+              {% for target in ai_extracted.targets %}
+                <span class="field-tag">TP{{ forloop.counter }}: {{ target }}</span>
+              {% endfor %}
+            {% endif %}
           </div>
         </div>
       {% endif %}
