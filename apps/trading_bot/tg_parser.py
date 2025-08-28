@@ -156,7 +156,6 @@ async def main_telegram_loop():
         logger.warning("Telegram client stopped.")
 
 
-# !CHECK AI GENERATED BULLSHIT
 def start_telegram_parser(is_simulation: bool):
     """
     Initializes and starts all components of the bot.
