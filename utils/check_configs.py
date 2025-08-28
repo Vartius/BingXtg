@@ -265,6 +265,9 @@ def _validate_env():
 
 
 def check_all():
+    # Check environment variables
+    _validate_env()
+
     # Check DB schema
     db_path = os.getenv("DB_PATH", "total.db")
     with sqlite3.connect(db_path) as conn:
@@ -273,9 +276,6 @@ def check_all():
         conn.execute("PRAGMA synchronous=NORMAL")
         _ensure_schema(conn)
         logger.info("Database schema is up to date.")
-
-    # Check environment variables
-    _validate_env()
 
 
 if __name__ == "__main__":
