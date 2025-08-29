@@ -3,6 +3,7 @@ This module contains the core logic for order management, including placing new 
 updating their status, and handling the main update loop.
 """
 
+import sqlite3
 import time
 import sys
 import os
@@ -11,14 +12,7 @@ from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 from dotenv import load_dotenv
 from .bingx_api import get_price, set_order_bingx
-from .data_handler import (
-    get_state,
-    save_state,
-    get_winrate,
-    save_winrate,
-    get_channels,
-    save_table,
-)
+import datetime
 
 # Load environment variables
 load_dotenv()
@@ -30,196 +24,131 @@ try:
     LEVERAGE = int(os.getenv("LEVERAGE", "20"))
     TP = float(os.getenv("TP", "0.2"))
     SL = float(os.getenv("SL", "-0.5"))
+    # Used for ROI calculation in trading_stats
+    START_BALANCE = float(os.getenv("START_BALANCE", "0"))
 except (ValueError, TypeError) as e:
     logger.critical(f"Configuration error: {e}. Please check your .env file.")
     sys.exit(1)
 
 
-# !CHECK AI GENERATED BULLSHIT
-def place_order(channel_id: str, coin: str, side: str, is_simulation: bool) -> bool:
+def place_order(channel_id: int, data: dict, is_simulation: bool) -> bool:
     """
-    Places a new order based on a signal, either in simulation or live mode.
+    Places a new order based on a signal, using the SQLite DB (trades table)
 
     Args:
         channel_id: The ID of the channel that sent the signal.
-        coin: The coin ticker (e.g., "BTC").
-        side: The order side ("long" or "short").
+        data: A dictionary containing the signal data (all data).
         is_simulation: If True, simulates the trade; otherwise, places a real order.
 
     Returns:
         True if the order was successfully placed/simulated, False otherwise.
     """
-    state = get_state()
-    winrate_data = get_winrate()
-    # If state is a list, convert to dict if possible (e.g., take first element)
-    if isinstance(state, list):
-        if len(state) > 0 and isinstance(state[0], dict):
-            state = state[0]
-        else:
-            logger.error(
-                f"State data is not in expected format to place order for {channel_id}."
-            )
-            return False
-    if not state or not winrate_data:
-        logger.error(
-            f"Could not get state or winrate data to place order for {channel_id}."
-        )
-        return False
-
-    # Calculate winrate factor for dynamic position sizing
-    # If winrate_data is a list, convert it to a dict with channel_id as key if possible
-    if isinstance(winrate_data, list):
-        winrate_dict = {
-            item.get("channel_id"): item
-            for item in winrate_data
-            if "channel_id" in item
-        }
-    else:
-        winrate_dict = winrate_data
-
-    channel_winrate = winrate_dict.get(channel_id, {"win": 0, "lose": 0})
-    total_trades = channel_winrate["win"] + channel_winrate["lose"]
-
-    winrate_factor = 0
-    if total_trades > MIN_ORDERS_TO_HIGH:
-        winrate_factor = channel_winrate["win"] / total_trades
-
-    # Base investment is 1% of balance, with a bonus up to MAX_PERCENT based on winrate
-    investment_percent = 0.01 + (MAX_PERCENT - 0.01) * winrate_factor
-    margin = state.get("available_balance", 0) * investment_percent
-
-    # In live mode, place the order via the API
-    if not is_simulation:
-        if not set_order_bingx(coin, side, investment_percent):
-            logger.error(f"Failed to place live order for {coin} {side}.")
-            return False
-
-    # For both live and simulation, update the state file
-    price = get_price(coin)
-    if price is None:
-        logger.warning(f"Could not fetch price for {coin}. Order placement aborted.")
-        return False
-
-    state["available_balance"] -= margin
-    order_details = {
-        "side": side,
-        "margin": margin,
-        "entry_price": price,
-        "current_price": price,
-        "pnl": 0.0,
-        "pnl_percent": 0.0,
-    }
-
-    if channel_id not in state["orders"]:
-        state["orders"][channel_id] = {}
-    state["orders"][channel_id][coin] = order_details
-
-    return save_state(state)
-
-
-# !CHECK AI GENERATED BULLSHIT
-def _update_open_orders(state: dict, winrate_data: dict) -> tuple[dict, dict]:
-    """Helper function to process and update all open orders."""
-    orders_to_close = []
-    for channel_id, orders in state.get("orders", {}).items():
-        for coin, order in orders.items():
-            price = get_price(coin)
-            if price is None:
-                continue  # Skip update if price is unavailable
-
-            order["current_price"] = price
-            entry_price = order.get("entry_price", 0)
-            if entry_price == 0:
-                continue
-
-            # Calculate PnL
-            if order.get("side") == "long":
-                pnl_percent = (price / entry_price - 1) * LEVERAGE
-            else:  # Short
-                pnl_percent = (entry_price / price - 1) * LEVERAGE
-
-            order["pnl"] = order["margin"] * pnl_percent
-            order["pnl_percent"] = pnl_percent * 100
-
-            # Check for TP/SL hit
-            if pnl_percent >= TP or pnl_percent <= SL:
-                if pnl_percent >= TP:
-                    winrate_data[channel_id]["win"] += 1
-                else:
-                    winrate_data[channel_id]["lose"] += 1
-
-                state["available_balance"] += order["margin"] + order["pnl"]
-                logger.success(f"Order for {coin} closed with PnL: ${order['pnl']:.2f}")
-                orders_to_close.append((channel_id, coin))
-
-    # Remove closed orders from the state
-    for channel_id, coin in orders_to_close:
-        if coin in state["orders"].get(channel_id, {}):
-            del state["orders"][channel_id][coin]
-
-    return state, winrate_data
-
-
-# !CHECK AI GENERATED BULLSHIT
-def _update_display_data(state: dict, channels: dict, winrate_data: dict):
-    """Prepares and saves data, then pushes it to connected clients."""
-    table_orders = []
-    total_pnl = 0
-    total_margin = 0
-
-    for channel_id, orders in state.get("orders", {}).items():
-        for coin, order in orders.items():
-            channel_name = channels.get(channel_id, {}).get("name", "Unknown")
-            table_orders.append(
-                [
-                    channel_name,
-                    coin,
-                    order.get("side"),
-                    f"{order.get('margin', 0):.2f}",
-                    order.get("entry_price"),
-                    order.get("current_price"),
-                    order.get("pnl", 0),
-                    order.get("pnl_percent", 0),
-                ]
-            )
-            total_pnl += order.get("pnl", 0)
-            total_margin += order.get("margin", 0)
-
-    # Calculate global winrate
-    total_wins = sum(w.get("win", 0) for w in winrate_data.values())
-    total_loses = sum(w.get("lose", 0) for w in winrate_data.values())
-    global_winrate = (
-        (total_wins / (total_wins + total_loses) * 100)
-        if (total_wins + total_loses) > 0
-        else 0
-    )
-
-    # Calculate total equity
-    state["balance"] = state.get("available_balance", 0) + total_margin + total_pnl
-
-    table_data = {
-        "orders": table_orders,
-        "available_balance": round(state.get("available_balance", 0), 2),
-        "balance": round(state.get("balance", 0), 2),
-        "winrate": round(global_winrate, 2),
-    }
-
-    # Push update via WebSocket
+    coin = "???"
     try:
-        channel_layer = get_channel_layer()
-        if channel_layer is not None:
-            async_to_sync(channel_layer.group_send)(
-                "dashboard", {"type": "dashboard_update", "message": table_data}
+        # Import here to avoid touching module-level imports
+        from .bingx_api import get_balance
+
+        """"is_signal": bool(signal_pred.item()),
+            "confidence": round(signal_conf.item(), 4),
+            "direction": None,
+            "pair": None,
+            "entry": None,
+            "stop_loss": None,
+            "targets": [],  # Changed from take_profit to targets
+            "leverage": None,"""
+
+        direction = str(data.get("direction"))
+        coin = str(data.get("pair"))
+        # Fetch current price first; required for both live and simulation
+        price = get_price(coin)
+        if price is None:
+            return False
+
+        # Resolve DB path and channel id
+        db_path = os.getenv("DB_PATH", "total.db")
+        # Compute dynamic position sizing based on per-channel historical winrate from SQL
+        wins = losses = 0
+        if channel_id is not None:
+            with sqlite3.connect(db_path) as conn:
+                conn.execute("PRAGMA foreign_keys=ON")
+                conn.execute("PRAGMA journal_mode=WAL")
+                conn.execute("PRAGMA synchronous=NORMAL")
+
+                # Ensure trades table exists
+                _ensure_trades_table(conn)
+
+                cur = conn.cursor()
+                cur.execute(
+                    """
+                    SELECT 
+                        SUM(CASE WHEN status='closed' AND pnl > 0 THEN 1 ELSE 0 END) AS wins,
+                        SUM(CASE WHEN status='closed' AND pnl < 0 THEN 1 ELSE 0 END) AS losses
+                    FROM trades
+                    WHERE channel_id = ?
+                    """,
+                    (channel_id,),
+                )
+                row = cur.fetchone() or (0, 0)
+                wins = int(row[0] or 0)
+                losses = int(row[1] or 0)
+
+        total_trades = wins + losses
+        winrate_factor = (
+            (wins / total_trades) if total_trades > MIN_ORDERS_TO_HIGH else 0.0
+        )
+
+        # Base investment is 1% of balance, with a bonus up to MAX_PERCENT based on winrate
+        investment_percent = 0.01 + (MAX_PERCENT - 0.01) * winrate_factor
+
+        # Determine margin from BingX available balance (fallback to START_BALANCE if unavailable)
+        _, available_balance = get_balance()
+        if available_balance is None:
+            available_balance = START_BALANCE
+        margin = float(available_balance) * float(investment_percent)
+        if margin <= 0:
+            logger.error("Calculated margin <= 0; cannot place order.")
+            return False
+
+        # Place live order via API when not simulating
+        if not is_simulation:
+            if not set_order_bingx(coin, direction, investment_percent):
+                logger.error(f"Failed to place live order for {coin} {direction}.")
+                return False
+
+        # Persist the trade in SQL (status = 'open')
+        with sqlite3.connect(db_path) as conn:
+            conn.execute("PRAGMA foreign_keys=ON")
+            conn.execute("PRAGMA journal_mode=WAL")
+            conn.execute("PRAGMA synchronous=NORMAL")
+
+            # Ensure trades table exists
+            _ensure_trades_table(conn)
+
+            # Ensure channel exists in channels table
+            conn.execute(
+                "INSERT OR IGNORE INTO channels (channel_id) VALUES (?)", (channel_id,)
             )
+
+            conn.execute(
+                """
+                INSERT INTO trades 
+                    (channel_id, coin, direction, margin, entry_price, current_price, pnl, pnl_percent, status)
+                VALUES (?, ?, ?, ?, ?, ?, 0.0, 0.0, 'open')
+                """,
+                (channel_id, coin.upper(), direction, margin, price, price),
+            )
+            conn.commit()
+
+        logger.success(
+            f"Order placed: channel={channel_id} coin={coin.upper()} side={direction} margin={margin:.2f} entry={price}"
+        )
+        return True
+
     except Exception as e:
-        logger.error(f"Error sending WebSocket update: {e}")
-
-    save_table(table_data)  # We still save the file for persistence
-    save_state(state)
-    save_winrate(winrate_data)
+        logger.error(f"Error placing order for {coin}: {e}")
+        return False
 
 
-# !CHECK AI GENERATED BULLSHIT
 def updater_thread_worker():
     """
     The main worker loop that runs in a separate thread. It periodically updates
@@ -227,47 +156,73 @@ def updater_thread_worker():
     """
     while True:
         try:
-            state = get_state()
-            winrate_data = get_winrate()
-            channels = get_channels()
+            db_path = os.getenv("DB_PATH", "total.db")
+            with sqlite3.connect(db_path) as conn:
+                conn.execute("PRAGMA foreign_keys=ON")
+                conn.execute("PRAGMA journal_mode=WAL")
+                conn.execute("PRAGMA synchronous=NORMAL")
 
-            # Convert state, winrate_data, and channels from list to dict if needed
-            if isinstance(state, list):
-                if len(state) > 0 and isinstance(state[0], dict):
-                    state = state[0]
-                else:
-                    state = {}
-            if isinstance(winrate_data, list):
-                winrate_data = {
-                    item.get("channel_id"): item
-                    for item in winrate_data
-                    if isinstance(item, dict) and "channel_id" in item
-                }
-            if isinstance(channels, list):
-                channels = {
-                    item.get("channel_id"): item
-                    for item in channels
-                    if isinstance(item, dict) and "channel_id" in item
-                }
-            if state is None:
-                state = {}
-            if winrate_data is None:
-                winrate_data = {}
-            if channels is None:
-                channels = {}
+                # Ensure trading_stats table exists and has singleton row
+                _ensure_trading_stats_singleton(conn)
 
-            if not all([state, winrate_data, channels]):
-                logger.warning(
-                    "Updater: Missing state, winrate, or channels data. Retrying..."
+                # Ensure trades table exists
+                _ensure_trades_table(conn)
+
+                # Get all trades from trades table with open status
+                cur = conn.cursor()
+                cur.execute(
+                    "SELECT trade_id, channel_id, coin, direction, margin, entry_price, current_price, pnl, pnl_percent FROM trades WHERE status = 'open'"
                 )
-                time.sleep(5)
-                continue
+                open_trades = cur.fetchall()
+                for trade in open_trades:
+                    (
+                        trade_id,
+                        channel_id,
+                        coin,
+                        direction,
+                        margin,
+                        entry_price,
+                        current_price,
+                        pnl,
+                        pnl_percent,
+                    ) = trade
+                    price = get_price(coin)
+                    if price is None:
+                        continue
 
-            # Update order PnL and close positions that hit TP/SL
-            state, winrate_data = _update_open_orders(state, winrate_data)
+                    # Calculate new PnL
+                    if direction == "LONG":
+                        new_pnl = (
+                            (price - entry_price) * (margin * LEVERAGE) / entry_price
+                        )
+                        new_pnl_percent = (price / entry_price - 1) * LEVERAGE
+                    else:  # SHORT
+                        new_pnl = (
+                            (entry_price - price) * (margin * LEVERAGE) / entry_price
+                        )
+                        new_pnl_percent = (entry_price / price - 1) * LEVERAGE
 
-            # Prepare and save data for the GUI and save updated state
-            _update_display_data(state, channels, winrate_data)
+                    # Update trade PnL
+                    cur.execute(
+                        "UPDATE trades SET pnl = ?, pnl_percent = ?, current_price = ?, updated_at = CURRENT_TIMESTAMP WHERE trade_id = ?",
+                        (new_pnl, new_pnl_percent, price, trade_id),
+                    )
+
+                    # check tp/sl hit
+                    if new_pnl_percent >= TP or new_pnl_percent <= SL:
+                        # close trade
+                        logger.info(
+                            f"Auto-closing trade {trade_id} for {coin} at price {price} due to TP/SL hit."
+                        )
+                        cur.execute(
+                            "UPDATE trades SET status = 'closed', close_price = ?, closed_at = CURRENT_TIMESTAMP WHERE trade_id = ?",
+                            (price, trade_id),
+                        )
+
+                # Update trading_stats singleton with aggregated data
+                _update_trading_stats_singleton(conn)
+
+                conn.commit()
 
         except Exception as e:
             logger.error(
@@ -276,3 +231,70 @@ def updater_thread_worker():
             )
 
         time.sleep(2)  # Update interval
+
+
+def _ensure_trading_stats_singleton(conn: sqlite3.Connection) -> None:
+    """
+    Ensure the trading_stats table exists and has exactly one row with id=1.
+    This implements the singleton pattern for trading statistics.
+    """
+    cur = conn.cursor()
+
+    # Ensure singleton row exists
+
+
+def _ensure_trades_table(conn: sqlite3.Connection) -> None:
+    """
+    Ensure the trades table exists with all required columns.
+    """
+    cur = conn.cursor()
+
+    # Create channels table if it doesn't exist
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS channels (
+            channel_id INTEGER PRIMARY KEY,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+
+def _update_trading_stats_singleton(conn: sqlite3.Connection) -> None:
+    """
+    Update the singleton trading_stats row with current aggregated data.
+    """
+    cur = conn.cursor()
+
+    # Aggregate stats from trades
+    cur.execute("SELECT COUNT(*) FROM trades")
+    total_trades = cur.fetchone()[0] or 0
+
+    cur.execute("SELECT COUNT(*) FROM trades WHERE status = 'closed' AND pnl > 0")
+    wins = cur.fetchone()[0] or 0
+
+    cur.execute("SELECT COUNT(*) FROM trades WHERE status = 'closed' AND pnl < 0")
+    losses = cur.fetchone()[0] or 0
+
+    cur.execute("SELECT IFNULL(SUM(pnl), 0) FROM trades")
+    profit = cur.fetchone()[0] or 0.0
+
+    denom = wins + losses
+    win_rate = (wins / denom * 100.0) if denom > 0 else 0.0
+
+    # ROI relative to START_BALANCE (percentage). If START_BALANCE <= 0, ROI = 0
+    roi = (profit / START_BALANCE * 100.0) if START_BALANCE > 0 else 0.0
+
+    # Update singleton row
+    cur.execute(
+        """
+        UPDATE trading_stats SET
+            total_trades = ?,
+            wins = ?,
+            losses = ?,
+            win_rate = ?,
+            profit = ?,
+            roi = ?,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = 1
+        """,
+        (total_trades, wins, losses, win_rate, profit, roi),
+    )
