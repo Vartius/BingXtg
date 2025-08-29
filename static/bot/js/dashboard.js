@@ -80,7 +80,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Handle both array and object formats
                 let orderData;
                 if (Array.isArray(order)) {
-                    // Array format: [trade_id, channel_id, coin, direction, margin, entry_price, current_price, pnl, pnl_percent]
+                    // Array format: [trade_id, channel_id, coin, direction, targets, leverage, sl, margin, entry_price, current_price, pnl, pnl_percent]
                     orderData = order;
                 } else {
                     // Object format: convert to array for backwards compatibility
@@ -89,6 +89,9 @@ document.addEventListener('DOMContentLoaded', function() {
                         order.channel_id,
                         order.coin,
                         order.direction,
+                        order.targets || '-',
+                        order.leverage ? `${parseFloat(order.leverage).toFixed(0)}x` : '-',
+                        order.sl ? parseFloat(order.sl).toFixed(4) : '-',
                         parseFloat(order.margin).toFixed(2),
                         parseFloat(order.entry_price).toFixed(4),
                         parseFloat(order.current_price).toFixed(4),
@@ -97,24 +100,29 @@ document.addEventListener('DOMContentLoaded', function() {
                     ];
                 }
                 
-                for (let i = 0; i < 9; i++) {
+                for (let i = 0; i < 12; i++) {
                     const cell = row.insertCell();
                     let cellData = orderData[i];
 
-                    // Format numbers for PnL cells (now indices 7 and 8)
-                    if (i === 7 || i === 8) {
+                    // Format numbers for PnL cells (now indices 10 and 11)
+                    if (i === 10 || i === 11) {
                         cellData = parseFloat(cellData).toFixed(2);
-                        if (i === 8) {
-                            cellData *= 100;
-                            cellData += '%';
-                        } // Add percent sign
+                        if (i === 11) {
+                            cellData += '%'; // Just add percent sign, don't multiply by 100
+                        }
                     }
 
                     cell.textContent = cellData;
 
                     // Apply styling based on content
-                    const pnlPercent = parseFloat(orderData[8]); // PnL % is now at index 8
-                    if (i === 7 || i === 8) { // PnL ($) and PnL (%)
+                    const pnlPercent = parseFloat(orderData[11]); // PnL % is now at index 11
+                    if (i === 10 || i === 11) { // PnL ($) and PnL (%)
+                        if (pnlPercent > 0) {
+                            cell.className = 'pnl-positive';
+                        } else if (pnlPercent < 0) {
+                            cell.className = 'pnl-negative';
+                        }
+                    } else if (i === 3) { // Side (now at index 3)
                         if (pnlPercent > 0) {
                             cell.className = 'pnl-positive';
                         } else if (pnlPercent < 0) {

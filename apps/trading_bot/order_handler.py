@@ -23,10 +23,10 @@ load_dotenv()
 # --- Configuration from Environment Variables ---
 try:
     MIN_ORDERS_TO_HIGH = int(os.getenv("MIN_ORDERS_TO_HIGH", "20"))
-    MAX_PERCENT = float(os.getenv("MAX_PERCENT", "0.3"))
+    MAX_PERCENT = float(os.getenv("MAX_PERCENT", "30"))
     LEVERAGE = int(os.getenv("LEVERAGE", "20"))
-    TP = float(os.getenv("TP", "0.2"))
-    SL = float(os.getenv("SL", "-0.5"))
+    TP = float(os.getenv("TP", "20"))
+    SL = float(os.getenv("SL", "-50"))
     # Used for ROI calculation in trading_stats
     START_BALANCE = float(os.getenv("START_BALANCE", "0"))
 except (ValueError, TypeError) as e:
@@ -92,7 +92,7 @@ def place_order(channel_id: int, data: dict, is_simulation: bool) -> bool:
         )
 
         # Base investment is 1% of balance, with a bonus up to MAX_PERCENT based on winrate
-        investment_percent = 0.01 + (MAX_PERCENT - 0.01) * winrate_factor
+        investment_percent = 0.01 + (MAX_PERCENT / 100 - 0.01) * winrate_factor
 
         # Determine margin from BingX available balance (fallback to START_BALANCE if unavailable)
         _, available_balance = get_balance()
@@ -133,13 +133,43 @@ def place_order(channel_id: int, data: dict, is_simulation: bool) -> bool:
                 "INSERT OR IGNORE INTO channels (channel_id) VALUES (?)", (channel_id,)
             )
 
+            # Extract additional fields from data
+            targets = str(
+                data.get(
+                    "targets",
+                    [
+                        price * (1 + TP / 100 / LEVERAGE)
+                        if direction == "LONG"
+                        else price * (1 - TP / 100 / LEVERAGE)
+                    ],
+                )
+            )
+            leverage = data.get("leverage", LEVERAGE)
+
+            sl = data.get(
+                "stop_loss",
+                price * (1 + SL / 100 / LEVERAGE)
+                if direction == "LONG"
+                else price * (1 - SL / 100 / LEVERAGE),
+            )
+
             conn.execute(
                 """
                 INSERT INTO trades 
-                    (channel_id, coin, direction, margin, entry_price, current_price, pnl, pnl_percent, status)
-                VALUES (?, ?, ?, ?, ?, ?, 0.0, 0.0, 'open')
+                    (channel_id, coin, direction, targets, leverage, sl, margin, entry_price, current_price, pnl, pnl_percent, status)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0.0, 0.0, 'open')
                 """,
-                (channel_id, coin.upper(), direction, margin, price, price),
+                (
+                    channel_id,
+                    coin.upper(),
+                    direction,
+                    targets,
+                    leverage,
+                    sl,
+                    margin,
+                    price,
+                    price,
+                ),
             )
             conn.commit()
 
@@ -179,7 +209,7 @@ def updater_thread_worker():
                 # Get all trades from trades table with open status
                 cur = conn.cursor()
                 cur.execute(
-                    "SELECT trade_id, channel_id, coin, direction, margin, entry_price, current_price, pnl, pnl_percent FROM trades WHERE status = 'open'"
+                    "SELECT trade_id, channel_id, coin, direction, targets, leverage, sl, margin, entry_price, current_price, pnl, pnl_percent FROM trades WHERE status = 'open'"
                 )
                 open_trades = cur.fetchall()
                 for trade in open_trades:
@@ -188,6 +218,9 @@ def updater_thread_worker():
                         channel_id,
                         coin,
                         direction,
+                        targets,
+                        leverage,
+                        sl,
                         margin,
                         entry_price,
                         current_price,
@@ -198,17 +231,26 @@ def updater_thread_worker():
                     if price is None:
                         continue
 
-                    # Calculate new PnL
+                    # Calculate new PnL using trade-specific leverage if available
+                    trade_leverage = leverage if leverage is not None else LEVERAGE
                     if direction == "LONG":
                         new_pnl = (
-                            (price - entry_price) * (margin * LEVERAGE) / entry_price
+                            (price - entry_price)
+                            * (margin * trade_leverage)
+                            / entry_price
                         )
-                        new_pnl_percent = (price / entry_price - 1) * LEVERAGE
+                        new_pnl_percent = (
+                            ((price / entry_price) - 1) * trade_leverage * 100
+                        )
                     else:  # SHORT
                         new_pnl = (
-                            (entry_price - price) * (margin * LEVERAGE) / entry_price
+                            (entry_price - price)
+                            * (margin * trade_leverage)
+                            / entry_price
                         )
-                        new_pnl_percent = (entry_price / price - 1) * LEVERAGE
+                        new_pnl_percent = (
+                            ((entry_price / price) - 1) * trade_leverage * 100
+                        )
 
                     # Update trade PnL
                     cur.execute(
@@ -216,16 +258,9 @@ def updater_thread_worker():
                         (new_pnl, new_pnl_percent, price, trade_id),
                     )
 
-                    # check tp/sl hit
-                    if new_pnl_percent >= TP or new_pnl_percent <= SL:
-                        # close trade
-                        logger.info(
-                            f"Auto-closing trade {trade_id} for {coin} at price {price} due to TP/SL hit."
-                        )
-                        cur.execute(
-                            "UPDATE trades SET status = 'closed', close_price = ?, closed_at = CURRENT_TIMESTAMP WHERE trade_id = ?",
-                            (price, trade_id),
-                        )
+                    # TODO: check tp/sl hit and close trade
+                    # ! there is some targets, so on hit the nearest target, pop it, update this trade and clone it as closed
+                    # ! if sl hit, close trade as loss
 
                 # Update trading_stats singleton with aggregated data
                 _update_trading_stats_singleton(conn)
@@ -288,6 +323,9 @@ def _ensure_trades_table(conn: sqlite3.Connection) -> None:
             channel_id INTEGER,
             coin TEXT NOT NULL,
             direction TEXT NOT NULL,
+            targets TEXT,
+            leverage REAL,
+            sl REAL,
             margin REAL NOT NULL,
             entry_price REAL NOT NULL,
             current_price REAL NOT NULL,

@@ -80,6 +80,9 @@ def _get_dashboard_data():
                     channel_id, 
                     coin, 
                     direction, 
+                    targets,
+                    leverage,
+                    sl,
                     margin, 
                     entry_price, 
                     current_price, 
@@ -94,18 +97,23 @@ def _get_dashboard_data():
             orders = []
             for row in cur.fetchall():
                 # Convert to array format expected by JavaScript
-                # [trade_id, channel_id, coin, direction, margin, entry_price, current_price, pnl, pnl_percent]
+                # [trade_id, channel_id, coin, direction, targets, leverage, sl, margin, entry_price, current_price, pnl, pnl_percent]
                 orders.append(
                     [
                         row[0],  # trade_id
                         row[1],  # channel_id
                         row[2],  # coin
                         row[3],  # direction
-                        f"{row[4]:.2f}",  # margin (formatted)
-                        f"{row[5]:.4f}",  # entry_price (formatted)
-                        f"{row[6]:.4f}",  # current_price (formatted)
-                        f"{row[7]:.2f}",  # pnl (formatted)
-                        f"{row[8]:.2f}",  # pnl_percent (formatted)
+                        row[4] if row[4] else "-",  # targets
+                        f"{row[5]:.0f}x"
+                        if row[5]
+                        else "-",  # leverage (formatted as integer with 'x')
+                        f"{row[6]:.4f}" if row[6] else "-",  # sl (formatted)
+                        f"{row[7]:.2f}",  # margin (formatted)
+                        f"{row[8]:.4f}",  # entry_price (formatted)
+                        f"{row[9]:.4f}",  # current_price (formatted)
+                        f"{row[10]:.2f}",  # pnl (formatted)
+                        f"{row[11]:.2f}",  # pnl_percent (formatted)
                     ]
                 )
 
