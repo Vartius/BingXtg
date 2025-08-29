@@ -23,7 +23,7 @@ load_dotenv()
 
 # --- Configuration from Environment Variables ---
 try:
-    API_ID = int(os.getenv("API_ID"))
+    API_ID = int(os.getenv("API_ID") or 0)
     API_HASH = os.getenv("API_HASH")
 
     if not API_ID or not API_HASH:
@@ -89,6 +89,11 @@ async def message_handler(client: Client, message: Message):
         # --- Command Handling (only from 'me' chat) ---
         if message.from_user and message.from_user.is_self and text.startswith("."):
             command = text.lower().strip()
+            if CHAT_IDS is None:
+                logger.error(
+                    "No channels configured to listen to. Cannot process commands."
+                )
+                return
             await handle_command(command, client, message, CHAT_IDS, IS_SIMULATION)
             return
 
