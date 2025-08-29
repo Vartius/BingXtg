@@ -15,7 +15,7 @@ from pyrogram.client import Client
 from pyrogram.types import Message
 from dotenv import load_dotenv
 
-from .text_parser import parse_message_for_signal
+from .text_parser import parse_message_for_signal, ai_parse_message_for_signal
 from .order_handler import place_order, updater_thread_worker
 from .command_handler import handle_command
 
@@ -59,14 +59,13 @@ logger.info(f"Loaded {len(CHAT_IDS)} channels from configuration.")
 
 
 # --- Message Handlers ---
-# !CHECK AI GENERATED BULLSHIT
 @app.on_message(filters.chat(CHAT_IDS))  # type: ignore
 async def message_handler(client: Client, message: Message):
     """
     Primary message handler that listens to configured channels and private messages.
     """
     try:
-        chat_id_str = str(message.chat.id)
+        chat_id = message.chat.id
         text = message.text or message.caption
         if not text:
             return  # Ignore messages with no text content
@@ -78,31 +77,24 @@ async def message_handler(client: Client, message: Message):
             return
 
         # --- Signal Processing ---
-        signal = parse_message_for_signal(text, chat_id_str, CHANNELS_CONFIG)
+        # TODO: do regex as alternative to AI parsing
+        # signal = parse_message_for_signal(text, chat_id)
+        signal = ai_parse_message_for_signal(text)
         if not signal:
             return
 
-        coin, side, log_message = signal
-        logger.success(log_message)
-
-        # Prevent placing duplicate orders
-        try:
-            with open("data/state.json", "r") as f:
-                state = json.load(f)
-            if coin in state.get("orders", {}).get(chat_id_str, {}):
-                logger.warning(
-                    f"Order for {coin} from {chat_id_str} already exists. Skipping."
-                )
-                return
-        except (FileNotFoundError, json.JSONDecodeError):
-            pass  # File may not exist yet, proceed
+        # TODO: Prevent placing duplicate orders
 
         # Place the order
-        success = place_order(chat_id_str, coin, side, IS_SIMULATION)
+        success = place_order(chat_id, signal, IS_SIMULATION)
         if success:
-            logger.info(f"Successfully processed order for {coin} {side}.")
+            logger.info(
+                f"Successfully processed order for {signal.get('pair')} {signal.get('direction')}."
+            )
         else:
-            logger.error(f"Failed to process order for {coin} {side}.")
+            logger.error(
+                f"Failed to process order for {signal.get('pair')} {signal.get('direction')}."
+            )
 
     except Exception as e:
         logger.error(f"Error in message handler: {type(e).__name__}: {e}")
