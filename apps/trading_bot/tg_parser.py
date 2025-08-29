@@ -7,7 +7,7 @@ import sys
 import os
 import json
 from threading import Thread
-from typing import List, Dict
+from typing import List, Dict, Optional
 from loguru import logger
 from pyrogram import filters, errors
 from pyrogram.sync import idle
@@ -39,22 +39,39 @@ IS_SIMULATION = False
 CHANNELS_CONFIG: Dict = {}
 
 
-# !CHECK AI GENERATED BULLSHIT
-def _load_channel_ids() -> List[int]:
-    """Loads channel IDs from the JSON config file."""
-    global CHANNELS_CONFIG
+def _load_channel_ids() -> Optional[List[int]]:
+    import sqlite3
+
+    db_path = os.getenv("DB_PATH", "total.db")
+
     try:
-        with open("data/channels.json", "r", encoding="utf-8") as f:
-            CHANNELS_CONFIG = json.load(f)
-        return [int(channel_id) for channel_id in CHANNELS_CONFIG]
-    except (FileNotFoundError, json.JSONDecodeError, ValueError) as e:
-        logger.critical(
-            f"Could not load or parse `channels.json`: {e}. Please ensure it is valid."
-        )
-        sys.exit(1)
+        with sqlite3.connect(db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            cursor.execute("SELECT channel_id FROM channels ORDER BY channel_id")
+            rows = cursor.fetchall()
+            CHAT_IDS = [
+                int(
+                    str(
+                        row["channel_id"]
+                        if str(row["channel_id"])[0] == "-"
+                        else "-100" + str(row["channel_id"])
+                    )
+                )
+                for row in rows
+            ]
+            logger.info(f"Loaded {len(CHAT_IDS)} channels from database.")
+            return CHAT_IDS
+    except Exception as e:
+        logger.error(f"Failed to load channels from database: {e}")
+        logger.info("Falling back to JSON configuration...")
+        return None
 
 
 CHAT_IDS = _load_channel_ids()
+if CHAT_IDS is None:
+    logger.critical("Failed to load channel IDs.")
+    sys.exit(1)
 logger.info(f"Loaded {len(CHAT_IDS)} channels from configuration.")
 
 
@@ -102,7 +119,6 @@ async def message_handler(client: Client, message: Message):
 
 
 # --- Application Startup ---
-# !CHECK AI GENERATED BULLSHIT
 async def main_telegram_loop():
     """Starts the Telegram client and keeps it running."""
     global CHAT_IDS
@@ -112,6 +128,11 @@ async def main_telegram_loop():
         logger.success(
             f"Telegram client started successfully for user: {me.first_name}"
         )
+
+        CHAT_IDS = _load_channel_ids()
+        if not CHAT_IDS:
+            logger.critical("No channels configured to listen to. Exiting.")
+            sys.exit(1)
 
         # Verify that the bot can access the configured channels
         valid_chats = []
