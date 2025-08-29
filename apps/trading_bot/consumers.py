@@ -2,9 +2,7 @@ import json
 from channels.generic.websocket import AsyncWebsocketConsumer
 
 
-# !CHECK AI GENERATED BULLSHIT
 class DashboardConsumer(AsyncWebsocketConsumer):
-    # !CHECK AI GENERATED BULLSHIT
     async def connect(self):
         """Handles new WebSocket connections."""
         self.room_group_name = "dashboard"
@@ -14,13 +12,11 @@ class DashboardConsumer(AsyncWebsocketConsumer):
 
         await self.accept()
 
-    # !CHECK AI GENERATED BULLSHIT
     async def disconnect(self, close_code):  # type: ignore
         """Handles WebSocket disconnections."""
         # Leave the 'dashboard' group
         await self.channel_layer.group_discard(self.room_group_name, self.channel_name)  # type: ignore
 
-    # !CHECK AI GENERATED BULLSHIT
     async def dashboard_update(self, event):
         """
         Receives a message from the channel layer group
