@@ -3,6 +3,7 @@ This module contains the core logic for order management, including placing new 
 updating their status, and handling the main update loop.
 """
 
+from calendar import c
 import sqlite3
 import time
 import sys
@@ -242,6 +243,19 @@ def _ensure_trading_stats_singleton(conn: sqlite3.Connection) -> None:
     cur = conn.cursor()
 
     # Ensure singleton row exists
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS trading_stats (
+            id INTEGER PRIMARY KEY CHECK (id = 1),
+            total_trades INTEGER DEFAULT 0,
+            wins INTEGER DEFAULT 0,
+            losses INTEGER DEFAULT 0,
+            win_rate REAL DEFAULT 0.0,
+            profit REAL DEFAULT 0.0,
+            roi REAL DEFAULT 0.0,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    cur.execute("INSERT OR IGNORE INTO trading_stats (id) VALUES (1)")
 
 
 def _ensure_trades_table(conn: sqlite3.Connection) -> None:
