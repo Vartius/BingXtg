@@ -150,7 +150,6 @@ async def handle_get_data(client: Client, message: Message):
         await message.reply_text("An error occurred while generating the data image.")
 
 
-# !CHECK AI GENERATED BULLSHIT
 async def handle_command(
     command: str, client: Client, message: Message, chat_ids: list, is_simulation: bool
 ):
@@ -165,5 +164,16 @@ async def handle_command(
         await handle_add_test_orders(is_simulation)
     elif command == ".getdata":
         await handle_get_data(client, message)
+    elif command == ".help":
+        help_text = (
+            "<b>Available Commands:</b>\n"
+            "• <code>.chatscheck</code> - Verify access to configured channels.\n"
+            "• <code>.chats</code> - List configured channels.\n"
+            "• <code>.stop</code> - Stop the bot gracefully.\n"
+            "• <code>.addtestorders</code> - Add random test orders (simulation mode only).\n"
+            "• <code>.getdata</code> - Get an image of current trading data.\n"
+            "• <code>.help</code> - Show this help message."
+        )
+        await message.reply_text(help_text)
     else:
         await message.reply_text(f"Unknown command: `{command}`")
