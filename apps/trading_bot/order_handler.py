@@ -102,7 +102,17 @@ def place_order(channel_id: int, data: dict, is_simulation: bool) -> bool:
 
         # Place live order via API when not simulating
         if not is_simulation:
-            if not set_order_bingx(coin, direction, investment_percent):
+            order_data = {
+                "coin": coin,
+                "direction": direction,
+                "pair": data.get("pair", f"{coin}-USDT"),
+                "entry": data.get("entry"),
+                "stop_loss": data.get("stop_loss"),
+                "targets": data.get("targets", []),
+                "leverage": data.get("leverage", LEVERAGE),
+                "percent": investment_percent,
+            }
+            if not set_order_bingx(order_data):
                 logger.error(f"Failed to place live order for {coin} {direction}.")
                 return False
 
