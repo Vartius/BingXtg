@@ -1,5 +1,4 @@
 import sys
-import os
 from django.core.management.base import BaseCommand
 from loguru import logger
 from apps.trading_bot.tg_parser import start_telegram_parser
