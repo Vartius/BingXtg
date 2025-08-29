@@ -5,7 +5,6 @@ and commands to their respective handlers.
 
 import sys
 import os
-import json
 from threading import Thread
 from typing import List, Dict, Optional
 from loguru import logger
