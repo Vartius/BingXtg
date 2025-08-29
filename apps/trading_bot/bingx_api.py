@@ -40,25 +40,44 @@ def get_bingx_client() -> BingxAPI:
     return BingxAPI(APIKEY, SECRETKEY, timestamp="local")
 
 
-# !CHECK AI GENERATED BULLSHIT
-def get_price(coin: str) -> float | None:
+def get_price(coin: str, stablecoins: list[str] | None = None) -> float | None:
     """
-    Gets the latest price of a specified coin ticker from BingX.
+    Gets the latest price of a specified coin ticker from BingX,
+    trying multiple USD-based stablecoins if needed.
 
     Args:
         coin: The coin ticker (e.g., "BTC").
+        stablecoins: Optional list of USD-based stablecoins to try (default includes popular ones).
 
     Returns:
-        The latest price as a float, or None if an error occurs.
+        The latest price as a float, or None if all attempts fail.
     """
+    # Default stablecoins if not provided
+    if stablecoins is None:
+        stablecoins = ["USDT", "USDC", "BUSD", "FDUSD", "TUSD", "DAI"]
+
     try:
         bingx = get_bingx_client()
-        price_response = bingx.get_latest_price(f"{coin}-USDT")
-        if price_response:
-            return float(price_response)
-        else:
-            logger.error(f"Error getting price for {coin}: {price_response.get('msg')}")
-            return None
+
+        for stable in stablecoins:
+            try:
+                symbol = f"{coin}-{stable}"
+                price_response = bingx.get_latest_price(symbol)
+
+                # Validate response
+                if price_response and isinstance(price_response, (int, float, str)):
+                    return float(price_response)
+
+                # Sometimes BingX returns dicts with 'price'
+                elif isinstance(price_response, dict) and "price" in price_response:
+                    return float(price_response["price"])
+
+            except Exception as e:
+                logger.warning(f"Failed to fetch price for {coin}-{stable}: {e}")
+
+        logger.error(f"Price not found for {coin} with any stablecoin: {stablecoins}")
+        return None
+
     except Exception as e:
         logger.error(f"Exception while getting price for {coin}: {e}")
         return None
