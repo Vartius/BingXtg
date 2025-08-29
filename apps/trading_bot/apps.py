@@ -1,7 +1,5 @@
 from django.apps import AppConfig
 
-# !CHECK AI GENERATED BULLSHIT
-
 
 class TradingBotConfig(AppConfig):
     default_auto_field = "django.db.models.BigAutoField"
