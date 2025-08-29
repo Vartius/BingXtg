@@ -2,8 +2,6 @@ from django.urls import path
 from django.http import HttpResponse
 from . import views
 
-# !CHECK AI GENERATED BULLSHIT
-
 
 def favicon_view(request):
     return HttpResponse(status=204)  # No Content
