@@ -48,15 +48,6 @@ def place_order(channel_id: int, data: dict, is_simulation: bool) -> bool:
         # Import here to avoid touching module-level imports
         from .bingx_api import get_balance
 
-        """"is_signal": bool(signal_pred.item()),
-            "confidence": round(signal_conf.item(), 4),
-            "direction": None,
-            "pair": None,
-            "entry": None,
-            "stop_loss": None,
-            "targets": [],  # Changed from take_profit to targets
-            "leverage": None,"""
-
         direction = str(data.get("direction"))
         coin = str(data.get("pair"))
         # Fetch current price first; required for both live and simulation
