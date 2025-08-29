@@ -4,9 +4,23 @@
   /* Trading Dashboard Specific Styling */
   .trading-stats {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
     gap: 1.5rem;
     margin-bottom: 2rem;
+  }
+  
+  @media (max-width: 768px) {
+    .trading-stats {
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 1rem;
+    }
+  }
+  
+  @media (max-width: 480px) {
+    .trading-stats {
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+    }
   }
   
   .stat-card {
@@ -133,9 +147,37 @@
     margin-bottom: 1rem;
     opacity: 0.5;
   }
+  
+  /* Connection status styling */
+  .connection-status {
+    position: fixed;
+    top: 1rem;
+    right: 1rem;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    z-index: 1000;
+    opacity: 0.9;
+  }
+  
+  .status-connected {
+    background: var(--ctp-green);
+    color: var(--ctp-base);
+  }
+  
+  .status-disconnected {
+    background: var(--ctp-yellow);
+    color: var(--ctp-base);
+  }
 </style>
 
 <h2>Trading Dashboard</h2>
+
+<!-- Connection Status Indicator -->
+<div id="connection-status" class="connection-status" style="display: none;">
+  Connecting...
+</div>
 
 <article class="card">
   <h3>Account Overview</h3>
@@ -152,6 +194,26 @@
       <div class="stat-label">Global Winrate</div>
       <div class="stat-value" id="winrate">N/A%</div>
     </div>
+    <div class="stat-card">
+      <div class="stat-label">Total Trades</div>
+      <div class="stat-value" id="total-trades">0</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Wins</div>
+      <div class="stat-value" id="wins" style="color: var(--ctp-green);">0</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Losses</div>
+      <div class="stat-value" id="losses" style="color: var(--ctp-red);">0</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Total Profit</div>
+      <div class="stat-value" id="profit">$0.00</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">ROI</div>
+      <div class="stat-value" id="roi">0.0%</div>
+    </div>
   </div>
 </article>
 
@@ -161,6 +223,7 @@
     <table class="orders-table" id="orders-table">
       <thead>
         <tr>
+          <th>Trade ID</th>
           <th>Channel</th>
           <th>Coin</th>
           <th>Side</th>

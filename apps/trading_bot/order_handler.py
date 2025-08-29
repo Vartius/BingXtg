@@ -3,7 +3,6 @@ This module contains the core logic for order management, including placing new 
 updating their status, and handling the main update loop.
 """
 
-from calendar import c
 import sqlite3
 import time
 import sys
@@ -13,7 +12,10 @@ from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 from dotenv import load_dotenv
 from .bingx_api import get_price, set_order_bingx
-import datetime
+
+# Global variable for debouncing websocket updates
+_last_websocket_update = 0
+_WEBSOCKET_UPDATE_INTERVAL = 1.0  # Minimum 1 second between updates
 
 # Load environment variables
 load_dotenv()
@@ -144,6 +146,10 @@ def place_order(channel_id: int, data: dict, is_simulation: bool) -> bool:
         logger.success(
             f"Order placed: channel={channel_id} coin={coin.upper()} side={direction} margin={margin:.2f} entry={price}"
         )
+
+        # Send websocket update after placing order
+        _send_dashboard_update()
+
         return True
 
     except Exception as e:
@@ -226,6 +232,9 @@ def updater_thread_worker():
 
                 conn.commit()
 
+                # Send websocket update after database changes
+                _send_dashboard_update()
+
         except Exception as e:
             logger.error(
                 f"An unexpected error occurred in the updater thread: {e}",
@@ -272,6 +281,27 @@ def _ensure_trades_table(conn: sqlite3.Connection) -> None:
         )
     """)
 
+    # Create trades table if it doesn't exist
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS trades (
+            trade_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            channel_id INTEGER,
+            coin TEXT NOT NULL,
+            direction TEXT NOT NULL,
+            margin REAL NOT NULL,
+            entry_price REAL NOT NULL,
+            current_price REAL NOT NULL,
+            pnl REAL DEFAULT 0.0,
+            pnl_percent REAL DEFAULT 0.0,
+            status TEXT DEFAULT 'open',
+            close_price REAL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            closed_at TIMESTAMP,
+            FOREIGN KEY (channel_id) REFERENCES channels (channel_id)
+        )
+    """)
+
 
 def _update_trading_stats_singleton(conn: sqlite3.Connection) -> None:
     """
@@ -313,3 +343,36 @@ def _update_trading_stats_singleton(conn: sqlite3.Connection) -> None:
         """,
         (total_trades, wins, losses, win_rate, profit, roi),
     )
+
+
+def _send_dashboard_update() -> None:
+    """
+    Send dashboard update via WebSocket to all connected clients.
+    Includes debouncing to avoid too frequent updates.
+    """
+    global _last_websocket_update
+
+    current_time = time.time()
+    if current_time - _last_websocket_update < _WEBSOCKET_UPDATE_INTERVAL:
+        return  # Skip update if too soon
+
+    try:
+        from .views import _get_dashboard_data
+
+        # Get current dashboard data
+        dashboard_data = _get_dashboard_data()
+
+        # Send via channel layer
+        channel_layer = get_channel_layer()
+        if channel_layer:
+            async_to_sync(channel_layer.group_send)(
+                "dashboard",
+                {
+                    "type": "dashboard_update",
+                    "message": dashboard_data,
+                },
+            )
+            _last_websocket_update = current_time
+            logger.debug("Dashboard update sent via WebSocket")
+    except Exception as e:
+        logger.error(f"Error sending dashboard update via WebSocket: {e}")
