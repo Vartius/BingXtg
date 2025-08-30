@@ -220,6 +220,22 @@
     background: var(--ctp-yellow);
     color: var(--ctp-base);
   }
+  
+  /* Simulation mode indicator */
+  .simulation-mode {
+    position: fixed;
+    top: 1rem;
+    left: 1rem;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    z-index: 1000;
+    background: var(--ctp-mauve);
+    color: var(--ctp-base);
+    opacity: 0.95;
+    display: none;
+  }
 </style>
 
 <h2>Trading Dashboard</h2>
@@ -227,6 +243,11 @@
 <!-- Connection Status Indicator -->
 <div id="connection-status" class="connection-status" style="display: none;">
   Connecting...
+</div>
+
+<!-- Simulation Mode Indicator -->
+<div id="simulation-mode" class="simulation-mode" style="display: none;">
+  📊 SIMULATION MODE
 </div>
 
 <article class="card">
