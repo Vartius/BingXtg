@@ -1,4 +1,3 @@
-import json
 import sqlite3
 import os
 from django.shortcuts import render
@@ -15,7 +14,7 @@ def dashboard(request):
         request,
         "trading_dashboard.html",
         {
-            "initial_data": json.dumps(initial_data)  # Pass as a JSON string
+            "initial_data": initial_data  # Pass as Python object, not JSON string
         },
     )
 
@@ -73,7 +72,7 @@ def _get_dashboard_data():
 
             cur = conn.cursor()
 
-            # Get open trades for orders list
+            # Get open and waiting trades for orders list
             cur.execute("""
                 SELECT 
                     trade_id, 
@@ -88,16 +87,21 @@ def _get_dashboard_data():
                     current_price, 
                     pnl, 
                     pnl_percent,
+                    status,
                     updated_at
                 FROM trades 
-                WHERE status = 'open'
-                ORDER BY updated_at DESC
+                WHERE status IN ('open', 'waiting')
+                ORDER BY 
+                    CASE status WHEN 'waiting' THEN 0 WHEN 'open' THEN 1 END,
+                    updated_at DESC
             """)
 
             orders = []
             for row in cur.fetchall():
                 # Convert to array format expected by JavaScript
-                # [trade_id, channel_id, coin, direction, targets, leverage, sl, margin, entry_price, current_price, pnl, pnl_percent]
+                # [trade_id, channel_id, coin, direction, targets, leverage, sl, margin, entry_price, current_price, pnl, pnl_percent, status]
+                status = row[12]  # status column
+
                 orders.append(
                     [
                         row[0],  # trade_id
@@ -112,8 +116,13 @@ def _get_dashboard_data():
                         f"{row[7]:.2f}",  # margin (formatted)
                         f"{row[8]:.4f}",  # entry_price (formatted)
                         f"{row[9]:.4f}",  # current_price (formatted)
-                        f"{row[10]:.2f}",  # pnl (formatted)
-                        f"{row[11]:.2f}",  # pnl_percent (formatted)
+                        f"{row[10]:.2f}"
+                        if status == "open"
+                        else "0.00",  # pnl (formatted, 0 for waiting)
+                        f"{row[11]:.2f}"
+                        if status == "open"
+                        else "0.00",  # pnl_percent (formatted, 0 for waiting)
+                        status.upper(),  # status (uppercase for display)
                     ]
                 )
 
