@@ -134,24 +134,29 @@ def place_order(channel_id: int, data: dict, is_simulation: bool) -> bool:
             )
 
             # Extract additional fields from data
-            targets = str(
-                data.get(
-                    "targets",
-                    [
-                        price * (1 + TP / 100 / LEVERAGE)
-                        if direction == "LONG"
-                        else price * (1 - TP / 100 / LEVERAGE)
-                    ],
-                )
-            )
-            leverage = data.get("leverage", LEVERAGE)
+            if data.get("leverage"):
+                leverage = float(data.get("leverage", LEVERAGE))
+            else:
+                leverage = LEVERAGE
 
-            sl = data.get(
-                "stop_loss",
-                price * (1 + SL / 100 / LEVERAGE)
-                if direction == "LONG"
-                else price * (1 - SL / 100 / LEVERAGE),
-            )
+            if data.get("targets"):
+                targets = str(data.get("targets"))
+            else:
+                targets = str(
+                    [
+                        price * (1 + TP / 100 / leverage)
+                        if direction == "LONG"
+                        else price * (1 - TP / 100 / leverage)
+                    ]
+                )
+            if data.get("stop_loss"):
+                sl = data.get("stop_loss")
+            else:
+                sl = (
+                    price * (1 + SL / 100 / leverage)
+                    if direction == "LONG"
+                    else price * (1 - SL / 100 / leverage)
+                )
 
             conn.execute(
                 """
@@ -258,9 +263,141 @@ def updater_thread_worker():
                         (new_pnl, new_pnl_percent, price, trade_id),
                     )
 
-                    # TODO: check tp/sl hit and close trade
-                    # ! there is some targets, so on hit the nearest target, pop it, update this trade and clone it as closed
-                    # ! if sl hit, close trade as loss
+                    # Check for stop loss hit
+                    sl_hit = False
+                    if sl is not None:
+                        if direction == "LONG" and price <= sl:
+                            sl_hit = True
+                        elif direction == "SHORT" and price >= sl:
+                            sl_hit = True
+
+                    if sl_hit:
+                        # Close trade as loss
+                        cur.execute(
+                            "UPDATE trades SET status = 'closed', close_price = ?, closed_at = CURRENT_TIMESTAMP WHERE trade_id = ?",
+                            (price, trade_id),
+                        )
+                        logger.info(
+                            f"Trade {trade_id} closed due to stop loss hit. Coin: {coin}, Price: {price}, SL: {sl}"
+                        )
+                        continue
+
+                    # Check for target hits (take profit)
+                    if targets:
+                        try:
+                            # Parse targets string to list
+                            import ast
+
+                            targets_list = (
+                                ast.literal_eval(targets)
+                                if isinstance(targets, str)
+                                else targets
+                            )
+                            if isinstance(targets_list, list) and targets_list:
+                                targets_list = sorted(
+                                    targets_list, key=float
+                                )  # Sort targets
+
+                                # Find the nearest target based on direction
+                                target_hit = None
+                                if direction == "LONG":
+                                    # For LONG, check if price reached any target (price >= target)
+                                    for target in targets_list:
+                                        if price >= float(target):
+                                            target_hit = float(target)
+                                            break
+                                else:  # SHORT
+                                    # For SHORT, check if price reached any target (price <= target)
+                                    targets_list = sorted(
+                                        targets_list, key=float, reverse=True
+                                    )  # Reverse for SHORT
+                                    for target in targets_list:
+                                        if price <= float(target):
+                                            target_hit = float(target)
+                                            break
+
+                                if target_hit is not None:
+                                    # Remove the hit target from the list
+                                    targets_list.remove(target_hit)
+
+                                    # Calculate partial profit for this target
+                                    if direction == "LONG":
+                                        partial_pnl = (
+                                            (target_hit - entry_price)
+                                            * (margin * trade_leverage)
+                                            / entry_price
+                                        )
+                                        partial_pnl_percent = (
+                                            ((target_hit / entry_price) - 1)
+                                            * trade_leverage
+                                            * 100
+                                        )
+                                    else:  # SHORT
+                                        partial_pnl = (
+                                            (entry_price - target_hit)
+                                            * (margin * trade_leverage)
+                                            / entry_price
+                                        )
+                                        partial_pnl_percent = (
+                                            ((entry_price / target_hit) - 1)
+                                            * trade_leverage
+                                            * 100
+                                        )
+
+                                    # Clone the trade as closed with partial profit
+                                    cur.execute(
+                                        """
+                                        INSERT INTO trades 
+                                            (channel_id, coin, direction, targets, leverage, sl, margin, entry_price, current_price, pnl, pnl_percent, status, close_price, created_at, updated_at, closed_at)
+                                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'closed', ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                                        """,
+                                        (
+                                            channel_id,
+                                            coin,
+                                            direction,
+                                            f"[{target_hit}]",  # Record which target was hit
+                                            trade_leverage,
+                                            sl,
+                                            margin,  # Keep same margin for the closed portion
+                                            entry_price,
+                                            target_hit,
+                                            partial_pnl,
+                                            partial_pnl_percent,
+                                            target_hit,
+                                            cur.execute(
+                                                "SELECT created_at FROM trades WHERE trade_id = ?",
+                                                (trade_id,),
+                                            ).fetchone()[0],
+                                        ),
+                                    )
+
+                                    logger.success(
+                                        f"Target hit for trade {trade_id}. Coin: {coin}, Target: {target_hit}, Partial PnL: {partial_pnl:.2f}"
+                                    )
+
+                                    # If no more targets, close the original trade
+                                    if not targets_list:
+                                        cur.execute(
+                                            "UPDATE trades SET status = 'closed', close_price = ?, closed_at = CURRENT_TIMESTAMP WHERE trade_id = ?",
+                                            (target_hit, trade_id),
+                                        )
+                                        logger.info(
+                                            f"All targets hit for trade {trade_id}. Trade fully closed."
+                                        )
+                                    else:
+                                        # Update the original trade with remaining targets
+                                        cur.execute(
+                                            "UPDATE trades SET targets = ? WHERE trade_id = ?",
+                                            (str(targets_list), trade_id),
+                                        )
+                                        logger.info(
+                                            f"Trade {trade_id} updated with remaining targets: {targets_list}"
+                                        )
+
+                        except (ValueError, SyntaxError, TypeError) as e:
+                            logger.warning(
+                                f"Could not parse targets for trade {trade_id}: {targets}. Error: {e}"
+                            )
 
                 # Update trading_stats singleton with aggregated data
                 _update_trading_stats_singleton(conn)
