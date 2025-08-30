@@ -269,6 +269,47 @@ tbody tr:hover {
     border: 1px solid rgba(237, 135, 150, 0.3);
 }
 
+/* Status Badge Styles */
+.status-badge {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.status-waiting {
+    color: var(--ctp-yellow);
+    background: rgba(238, 212, 159, 0.1);
+    border: 1px solid rgba(238, 212, 159, 0.3);
+}
+
+.status-open {
+    color: var(--ctp-blue);
+    background: rgba(138, 173, 244, 0.1);
+    border: 1px solid rgba(138, 173, 244, 0.3);
+}
+
+.status-closed {
+    color: var(--ctp-text);
+    background: rgba(202, 211, 245, 0.1);
+    border: 1px solid rgba(202, 211, 245, 0.3);
+}
+
+.status-cancelled {
+    color: var(--danger);
+    background: rgba(237, 135, 150, 0.1);
+    border: 1px solid rgba(237, 135, 150, 0.3);
+}
+
+.status-filled {
+    color: var(--success);
+    background: rgba(166, 218, 149, 0.1);
+    border: 1px solid rgba(166, 218, 149, 0.3);
+}
+
 /* Enhanced Buttons and Interactive Elements */
 .btn, button, input[type="submit"], input[type="button"] {
     background: linear-gradient(135deg, var(--primary), var(--ctp-teal-bright));

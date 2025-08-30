@@ -80,7 +80,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Handle both array and object formats
                 let orderData;
                 if (Array.isArray(order)) {
-                    // Array format: [trade_id, channel_id, coin, direction, targets, leverage, sl, margin, entry_price, current_price, pnl, pnl_percent]
+                    // Array format: [trade_id, channel_id, coin, direction, targets, leverage, sl, margin, entry_price, current_price, pnl, pnl_percent, status]
                     orderData = order;
                 } else {
                     // Object format: convert to array for backwards compatibility
@@ -96,15 +96,16 @@ document.addEventListener('DOMContentLoaded', function() {
                         parseFloat(order.entry_price).toFixed(4),
                         parseFloat(order.current_price).toFixed(4),
                         parseFloat(order.pnl).toFixed(2),
-                        parseFloat(order.pnl_percent).toFixed(2)
+                        parseFloat(order.pnl_percent).toFixed(2),
+                        order.status || 'OPEN'
                     ];
                 }
                 
-                for (let i = 0; i < 12; i++) {
+                for (let i = 0; i < 13; i++) {
                     const cell = row.insertCell();
                     let cellData = orderData[i];
 
-                    // Format numbers for PnL cells (now indices 10 and 11)
+                    // Format numbers for PnL cells (indices 10 and 11)
                     if (i === 10 || i === 11) {
                         cellData = parseFloat(cellData).toFixed(2);
                         if (i === 11) {
@@ -112,23 +113,25 @@ document.addEventListener('DOMContentLoaded', function() {
                         }
                     }
 
-                    cell.textContent = cellData;
+                    // Handle status column (index 12)
+                    if (i === 12) {
+                        const statusBadge = document.createElement('span');
+                        statusBadge.className = `status-badge status-${cellData.toLowerCase()}`;
+                        statusBadge.textContent = cellData;
+                        cell.appendChild(statusBadge);
+                    } else {
+                        cell.textContent = cellData;
+                    }
 
                     // Apply styling based on content
-                    const pnlPercent = parseFloat(orderData[11]); // PnL % is now at index 11
+                    const pnlPercent = parseFloat(orderData[11]); // PnL % is at index 11
                     if (i === 10 || i === 11) { // PnL ($) and PnL (%)
                         if (pnlPercent > 0) {
                             cell.className = 'pnl-positive';
                         } else if (pnlPercent < 0) {
                             cell.className = 'pnl-negative';
                         }
-                    } else if (i === 3) { // Side (now at index 3)
-                        if (pnlPercent > 0) {
-                            cell.className = 'pnl-positive';
-                        } else if (pnlPercent < 0) {
-                            cell.className = 'pnl-negative';
-                        }
-                    } else if (i === 3) { // Side (now at index 3)
+                    } else if (i === 3) { // Side (direction column at index 3)
                         if (String(cellData).toLowerCase() === 'long') {
                             cell.className = 'side-long';
                         } else if (String(cellData).toLowerCase() === 'short') {
