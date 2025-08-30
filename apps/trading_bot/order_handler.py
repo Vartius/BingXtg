@@ -308,15 +308,24 @@ def updater_thread_worker():
                                             break
                                 else:  # SHORT
                                     # For SHORT, check if price reached any target (price <= target)
-                                    targets_list = sorted(
-                                        targets_list, key=float, reverse=True
-                                    )  # Reverse for SHORT
+                                    targets_list = targets_list[::-1]
                                     for target in targets_list:
                                         if price <= float(target):
                                             target_hit = float(target)
                                             break
 
                                 if target_hit is not None:
+                                    # Get original targets to calculate portion size
+                                    original_targets = (
+                                        ast.literal_eval(targets)
+                                        if isinstance(targets, str)
+                                        else targets
+                                    )
+                                    original_targets_count = len(original_targets)
+
+                                    # Calculate partial margin (equal distribution between all targets)
+                                    partial_margin = margin / original_targets_count
+
                                     # Remove the hit target from the list
                                     targets_list.remove(target_hit)
 
@@ -324,7 +333,7 @@ def updater_thread_worker():
                                     if direction == "LONG":
                                         partial_pnl = (
                                             (target_hit - entry_price)
-                                            * (margin * trade_leverage)
+                                            * (partial_margin * trade_leverage)
                                             / entry_price
                                         )
                                         partial_pnl_percent = (
@@ -335,7 +344,7 @@ def updater_thread_worker():
                                     else:  # SHORT
                                         partial_pnl = (
                                             (entry_price - target_hit)
-                                            * (margin * trade_leverage)
+                                            * (partial_margin * trade_leverage)
                                             / entry_price
                                         )
                                         partial_pnl_percent = (
@@ -348,8 +357,8 @@ def updater_thread_worker():
                                     cur.execute(
                                         """
                                         INSERT INTO trades 
-                                            (channel_id, coin, direction, targets, leverage, sl, margin, entry_price, current_price, pnl, pnl_percent, status, close_price, created_at, updated_at, closed_at)
-                                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'closed', ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                                            (channel_id, coin, direction, targets, leverage, sl, margin, entry_price, current_price, pnl, pnl_percent, status, close_price, closed_at)
+                                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'closed', ?, CURRENT_TIMESTAMP)
                                         """,
                                         (
                                             channel_id,
@@ -358,21 +367,30 @@ def updater_thread_worker():
                                             f"[{target_hit}]",  # Record which target was hit
                                             trade_leverage,
                                             sl,
-                                            margin,  # Keep same margin for the closed portion
+                                            partial_margin,  # Use partial margin for the closed portion
                                             entry_price,
                                             target_hit,
                                             partial_pnl,
                                             partial_pnl_percent,
                                             target_hit,
-                                            cur.execute(
-                                                "SELECT created_at FROM trades WHERE trade_id = ?",
-                                                (trade_id,),
-                                            ).fetchone()[0],
                                         ),
                                     )
 
+                                    # Update remaining margin in the original trade
+                                    remaining_margin = margin - partial_margin
+
+                                    # Move stop loss to breakeven after first target hit
+                                    new_sl = sl
+                                    if (
+                                        len(targets_list) == original_targets_count - 1
+                                    ):  # First target hit
+                                        new_sl = entry_price  # Move to breakeven
+                                        logger.info(
+                                            f"Moving stop loss to breakeven for trade {trade_id}. New SL: {new_sl}"
+                                        )
+
                                     logger.success(
-                                        f"Target hit for trade {trade_id}. Coin: {coin}, Target: {target_hit}, Partial PnL: {partial_pnl:.2f}"
+                                        f"Target hit for trade {trade_id}. Coin: {coin}, Target: {target_hit}, Partial PnL: {partial_pnl:.2f}, Partial margin: {partial_margin:.2f}"
                                     )
 
                                     # If no more targets, close the original trade
@@ -385,13 +403,18 @@ def updater_thread_worker():
                                             f"All targets hit for trade {trade_id}. Trade fully closed."
                                         )
                                     else:
-                                        # Update the original trade with remaining targets
+                                        # Update the original trade with remaining targets, margin and new SL
                                         cur.execute(
-                                            "UPDATE trades SET targets = ? WHERE trade_id = ?",
-                                            (str(targets_list), trade_id),
+                                            "UPDATE trades SET targets = ?, margin = ?, sl = ? WHERE trade_id = ?",
+                                            (
+                                                str(targets_list),
+                                                remaining_margin,
+                                                new_sl,
+                                                trade_id,
+                                            ),
                                         )
                                         logger.info(
-                                            f"Trade {trade_id} updated with remaining targets: {targets_list}"
+                                            f"Trade {trade_id} updated - remaining targets: {targets_list}, margin: {remaining_margin:.2f}, SL: {new_sl}"
                                         )
 
                         except (ValueError, SyntaxError, TypeError) as e:
@@ -533,20 +556,47 @@ def _send_dashboard_update() -> None:
 
     try:
         from .views import _get_dashboard_data
+        import asyncio
 
         # Get current dashboard data
         dashboard_data = _get_dashboard_data()
 
-        # Send via channel layer
+        # Send via channel layer - handle both sync and async contexts
         channel_layer = get_channel_layer()
         if channel_layer:
-            async_to_sync(channel_layer.group_send)(
-                "dashboard",
-                {
-                    "type": "dashboard_update",
-                    "message": dashboard_data,
-                },
-            )
+            try:
+                # Try to get the current event loop
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    # We're in an async context, schedule the task
+                    asyncio.create_task(
+                        channel_layer.group_send(
+                            "dashboard",
+                            {
+                                "type": "dashboard_update",
+                                "message": dashboard_data,
+                            },
+                        )
+                    )
+                else:
+                    # No running loop, use async_to_sync
+                    async_to_sync(channel_layer.group_send)(
+                        "dashboard",
+                        {
+                            "type": "dashboard_update",
+                            "message": dashboard_data,
+                        },
+                    )
+            except RuntimeError:
+                # No event loop, use async_to_sync
+                async_to_sync(channel_layer.group_send)(
+                    "dashboard",
+                    {
+                        "type": "dashboard_update",
+                        "message": dashboard_data,
+                    },
+                )
+
             _last_websocket_update = current_time
             logger.debug("Dashboard update sent via WebSocket")
     except Exception as e:
