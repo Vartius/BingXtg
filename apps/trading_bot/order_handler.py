@@ -34,6 +34,26 @@ except (ValueError, TypeError) as e:
     sys.exit(1)
 
 
+def _normalize_channel_id(channel_id: int) -> int:
+    """
+    Normalizes channel ID to handle both positive and negative formats.
+    Telegram channels can have IDs like -1002595715996 (negative)
+    but may be stored in database as 2595715996 (positive).
+
+    Args:
+        channel_id: The raw channel ID from Telegram
+
+    Returns:
+        The normalized channel ID that should exist in the database
+    """
+    if channel_id < 0:
+        # Convert negative format (-1002595715996) to positive (2595715996)
+        str_id = str(abs(channel_id))
+        if str_id.startswith("100"):
+            return int(str_id[3:])  # Remove the "100" prefix
+    return abs(channel_id)
+
+
 def place_order(channel_id: int, data: dict, is_simulation: bool) -> bool:
     """
     Places a new order based on a signal, using the SQLite DB (trades table)
@@ -51,7 +71,17 @@ def place_order(channel_id: int, data: dict, is_simulation: bool) -> bool:
         # Import here to avoid touching module-level imports
         from .bingx_api import get_balance
 
-        direction = str(data.get("direction"))
+        # Normalize channel ID to handle both positive and negative formats
+        normalized_channel_id = _normalize_channel_id(channel_id)
+        logger.debug(f"Channel ID {channel_id} normalized to {normalized_channel_id}")
+
+        # Handle direction conversion (AI models return numeric: 0=long, 1=short)
+        direction_value = data.get("direction")
+        if isinstance(direction_value, (int, float)):
+            direction = "long" if int(direction_value) == 0 else "short"
+        else:
+            direction = str(direction_value)
+
         coin = str(data.get("pair"))
         # Fetch current price first; required for both live and simulation
         price = get_price(coin)
@@ -62,7 +92,7 @@ def place_order(channel_id: int, data: dict, is_simulation: bool) -> bool:
         db_path = os.getenv("DB_PATH", "total.db")
         # Compute dynamic position sizing based on per-channel historical winrate from SQL
         wins = losses = 0
-        if channel_id is not None:
+        if normalized_channel_id is not None:
             with sqlite3.connect(db_path) as conn:
                 conn.execute("PRAGMA foreign_keys=ON")
                 conn.execute("PRAGMA journal_mode=WAL")
@@ -80,7 +110,7 @@ def place_order(channel_id: int, data: dict, is_simulation: bool) -> bool:
                     FROM trades
                     WHERE channel_id = ?
                     """,
-                    (channel_id,),
+                    (normalized_channel_id,),
                 )
                 row = cur.fetchone() or (0, 0)
                 wins = int(row[0] or 0)
@@ -130,7 +160,8 @@ def place_order(channel_id: int, data: dict, is_simulation: bool) -> bool:
 
             # Ensure channel exists in channels table
             conn.execute(
-                "INSERT OR IGNORE INTO channels (channel_id) VALUES (?)", (channel_id,)
+                "INSERT OR IGNORE INTO channels (channel_id) VALUES (?)",
+                (normalized_channel_id,),
             )
 
             # Extract additional fields from data
@@ -140,46 +171,110 @@ def place_order(channel_id: int, data: dict, is_simulation: bool) -> bool:
                 leverage = LEVERAGE
 
             if data.get("targets"):
-                targets = str(data.get("targets"))
+                raw_targets = data.get("targets")
             else:
-                targets = str(
-                    [
-                        price * (1 + TP / 100 / leverage)
-                        if direction == "LONG"
-                        else price * (1 - TP / 100 / leverage)
-                    ]
-                )
+                raw_targets = [
+                    price * (1 + TP / 100 / leverage)
+                    if direction.upper() == "LONG"
+                    else price * (1 - TP / 100 / leverage)
+                ]
             if data.get("stop_loss"):
                 sl = data.get("stop_loss")
             else:
                 sl = (
                     price * (1 + SL / 100 / leverage)
-                    if direction == "LONG"
+                    if direction.upper() == "LONG"
                     else price * (1 - SL / 100 / leverage)
                 )
 
-            conn.execute(
-                """
-                INSERT INTO trades 
-                    (channel_id, coin, direction, targets, leverage, sl, margin, entry_price, current_price, pnl, pnl_percent, status)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0.0, 0.0, 'open')
-                """,
-                (
-                    channel_id,
-                    coin.upper(),
-                    direction,
-                    targets,
-                    leverage,
-                    sl,
-                    margin,
-                    price,
-                    price,
-                ),
-            )
+            # Determine entry price and status
+            entry_price = data.get("entry")
+            if entry_price is not None:
+                entry_price = float(entry_price)
+                # Check if we need to wait for entry or can enter immediately
+                entry_tolerance = 0.001  # 0.1% tolerance for immediate entry
+
+                if direction.upper() == "LONG":
+                    # For LONG: enter immediately if current price is at or below entry price (+ tolerance)
+                    can_enter_immediately = price <= entry_price * (1 + entry_tolerance)
+                else:  # SHORT
+                    # For SHORT: enter immediately if current price is at or above entry price (- tolerance)
+                    can_enter_immediately = price >= entry_price * (1 - entry_tolerance)
+
+                status = "open" if can_enter_immediately else "waiting"
+            else:
+                # No specific entry price, enter at current market price
+                entry_price = price
+                status = "open"
+
+            # Filter targets based on direction and entry price
+            if raw_targets:
+                if direction.upper() == "LONG":
+                    # For LONG: only keep targets above entry price
+                    valid_targets = [t for t in raw_targets if float(t) > entry_price]
+                else:  # SHORT
+                    # For SHORT: only keep targets below entry price
+                    valid_targets = [t for t in raw_targets if float(t) < entry_price]
+
+                targets = str(valid_targets) if valid_targets else str([])
+                if not valid_targets:
+                    logger.warning(
+                        f"No valid targets for {direction} trade at entry {entry_price}. Original targets: {raw_targets}"
+                    )
+                else:
+                    logger.info(
+                        f"Valid targets for {direction} trade at entry {entry_price}: {valid_targets}"
+                    )
+            else:
+                targets = str([])
+                logger.warning(
+                    f"No targets provided for {direction} trade at entry {entry_price}"
+                )
+
+            if status == "open":
+                conn.execute(
+                    """
+                    INSERT INTO trades 
+                        (channel_id, coin, direction, targets, leverage, sl, margin, entry_price, current_price, pnl, pnl_percent, status, activated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0.0, 0.0, ?, CURRENT_TIMESTAMP)
+                    """,
+                    (
+                        normalized_channel_id,
+                        coin.upper(),
+                        direction,
+                        targets,
+                        leverage,
+                        sl,
+                        margin,
+                        entry_price,
+                        price,
+                        status,
+                    ),
+                )
+            else:
+                conn.execute(
+                    """
+                    INSERT INTO trades 
+                        (channel_id, coin, direction, targets, leverage, sl, margin, entry_price, current_price, pnl, pnl_percent, status)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0.0, 0.0, ?)
+                    """,
+                    (
+                        normalized_channel_id,
+                        coin.upper(),
+                        direction,
+                        targets,
+                        leverage,
+                        sl,
+                        margin,
+                        entry_price,
+                        price,
+                        status,
+                    ),
+                )
             conn.commit()
 
         logger.success(
-            f"Order placed: channel={channel_id} coin={coin.upper()} side={direction} margin={margin:.2f} entry={price}"
+            f"Order placed: channel={channel_id} (normalized={normalized_channel_id}) coin={coin.upper()} side={direction} margin={margin:.2f} entry={entry_price} status={status}"
         )
 
         # Send websocket update after placing order
@@ -211,8 +306,58 @@ def updater_thread_worker():
                 # Ensure trades table exists
                 _ensure_trades_table(conn)
 
-                # Get all trades from trades table with open status
+                # Get all trades from trades table with open or waiting status
                 cur = conn.cursor()
+
+                # First, check waiting trades for entry conditions
+                cur.execute(
+                    "SELECT trade_id, channel_id, coin, direction, targets, leverage, sl, margin, entry_price, current_price FROM trades WHERE status = 'waiting'"
+                )
+                waiting_trades = cur.fetchall()
+                for trade in waiting_trades:
+                    (
+                        trade_id,
+                        channel_id,
+                        coin,
+                        direction,
+                        targets,
+                        leverage,
+                        sl,
+                        margin,
+                        entry_price,
+                        current_price,
+                    ) = trade
+
+                    price = get_price(coin)
+                    if price is None:
+                        continue
+
+                    # Check if entry conditions are met
+                    entry_hit = False
+                    if direction.upper() == "LONG":
+                        # For LONG: price must go down to or below entry price
+                        entry_hit = price <= entry_price
+                    else:  # SHORT
+                        # For SHORT: price must go up to or above entry price
+                        entry_hit = price >= entry_price
+
+                    if entry_hit:
+                        # Activate the trade
+                        cur.execute(
+                            "UPDATE trades SET status = 'open', activated_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE trade_id = ?",
+                            (trade_id,),
+                        )
+                        logger.success(
+                            f"Trade {trade_id} activated - Entry hit for {coin} at {price} (target entry: {entry_price})"
+                        )
+                    else:
+                        # Update current price for waiting trades
+                        cur.execute(
+                            "UPDATE trades SET current_price = ?, updated_at = CURRENT_TIMESTAMP WHERE trade_id = ?",
+                            (price, trade_id),
+                        )
+
+                # Now process open trades for PnL and target/SL checks
                 cur.execute(
                     "SELECT trade_id, channel_id, coin, direction, targets, leverage, sl, margin, entry_price, current_price, pnl, pnl_percent FROM trades WHERE status = 'open'"
                 )
@@ -238,7 +383,7 @@ def updater_thread_worker():
 
                     # Calculate new PnL using trade-specific leverage if available
                     trade_leverage = leverage if leverage is not None else LEVERAGE
-                    if direction == "LONG":
+                    if direction.upper() == "LONG":
                         new_pnl = (
                             (price - entry_price)
                             * (margin * trade_leverage)
@@ -266,9 +411,9 @@ def updater_thread_worker():
                     # Check for stop loss hit
                     sl_hit = False
                     if sl is not None:
-                        if direction == "LONG" and price <= sl:
+                        if direction.upper() == "LONG" and price <= sl:
                             sl_hit = True
-                        elif direction == "SHORT" and price >= sl:
+                        elif direction.upper() == "SHORT" and price >= sl:
                             sl_hit = True
 
                     if sl_hit:
@@ -294,13 +439,29 @@ def updater_thread_worker():
                                 else targets
                             )
                             if isinstance(targets_list, list) and targets_list:
-                                targets_list = sorted(
-                                    targets_list, key=float
-                                )  # Sort targets
+                                # Filter and sort targets based on direction
+                                if direction.upper() == "LONG":
+                                    # For LONG: only keep targets above entry price, sort ascending (closest first)
+                                    targets_list = [
+                                        t
+                                        for t in targets_list
+                                        if float(t) > entry_price
+                                    ]
+                                    targets_list = sorted(targets_list, key=float)
+                                else:  # SHORT
+                                    # For SHORT: only keep targets below entry price, sort descending (closest first)
+                                    targets_list = [
+                                        t
+                                        for t in targets_list
+                                        if float(t) < entry_price
+                                    ]
+                                    targets_list = sorted(
+                                        targets_list, key=float, reverse=True
+                                    )
 
                                 # Find the nearest target based on direction
                                 target_hit = None
-                                if direction == "LONG":
+                                if direction.upper() == "LONG":
                                     # For LONG, check if price reached any target (price >= target)
                                     for target in targets_list:
                                         if price >= float(target):
@@ -308,7 +469,6 @@ def updater_thread_worker():
                                             break
                                 else:  # SHORT
                                     # For SHORT, check if price reached any target (price <= target)
-                                    targets_list = targets_list[::-1]
                                     for target in targets_list:
                                         if price <= float(target):
                                             target_hit = float(target)
@@ -330,7 +490,7 @@ def updater_thread_worker():
                                     targets_list.remove(target_hit)
 
                                     # Calculate partial profit for this target
-                                    if direction == "LONG":
+                                    if direction.upper() == "LONG":
                                         partial_pnl = (
                                             (target_hit - entry_price)
                                             * (partial_margin * trade_leverage)
@@ -496,9 +656,16 @@ def _ensure_trades_table(conn: sqlite3.Connection) -> None:
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             closed_at TIMESTAMP,
+            activated_at TIMESTAMP,
             FOREIGN KEY (channel_id) REFERENCES channels (channel_id)
         )
     """)
+
+    # Add activated_at column if it doesn't exist (for backward compatibility)
+    try:
+        cur.execute("ALTER TABLE trades ADD COLUMN activated_at TIMESTAMP")
+    except sqlite3.OperationalError:
+        pass  # Column already exists
 
 
 def _update_trading_stats_singleton(conn: sqlite3.Connection) -> None:
@@ -507,8 +674,8 @@ def _update_trading_stats_singleton(conn: sqlite3.Connection) -> None:
     """
     cur = conn.cursor()
 
-    # Aggregate stats from trades
-    cur.execute("SELECT COUNT(*) FROM trades")
+    # Aggregate stats from trades (exclude waiting trades from total count)
+    cur.execute("SELECT COUNT(*) FROM trades WHERE status != 'waiting'")
     total_trades = cur.fetchone()[0] or 0
 
     cur.execute("SELECT COUNT(*) FROM trades WHERE status = 'closed' AND pnl > 0")
@@ -517,7 +684,7 @@ def _update_trading_stats_singleton(conn: sqlite3.Connection) -> None:
     cur.execute("SELECT COUNT(*) FROM trades WHERE status = 'closed' AND pnl < 0")
     losses = cur.fetchone()[0] or 0
 
-    cur.execute("SELECT IFNULL(SUM(pnl), 0) FROM trades")
+    cur.execute("SELECT IFNULL(SUM(pnl), 0) FROM trades WHERE status != 'waiting'")
     profit = cur.fetchone()[0] or 0.0
 
     denom = wins + losses
