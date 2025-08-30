@@ -26,9 +26,11 @@ from .database_manager import DatabaseManager
 logger = logging.getLogger(__name__)
 
 
+# !CHECK AI GENERATED BULLSHIT
 class TextPreprocessor:
     """Handles text preprocessing for message analysis."""
 
+    # !CHECK AI GENERATED BULLSHIT
     def __init__(self):
         self.url_pattern = re.compile(
             r"http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+|"
@@ -38,6 +40,7 @@ class TextPreprocessor:
             re.IGNORECASE,
         )
 
+    # !CHECK AI GENERATED BULLSHIT
     def clean_text(self, text: str) -> str:
         """Cleans and preprocesses text by removing URLs/emails and normalizing whitespace."""
         if not isinstance(text, str):
@@ -48,6 +51,7 @@ class TextPreprocessor:
 
 
 # ============================ LABEL MAPPINGS ============================
+# !CHECK AI GENERATED BULLSHIT
 NER_LABELS: List[str] = [
     "O",
     "B-PAIR",
@@ -69,6 +73,7 @@ DIRECTION_ID2LABEL = {v: k for k, v in DIRECTION_LABEL2ID.items()}
 
 
 # ============================ CUSTOM MODELS ============================
+# !CHECK AI GENERATED BULLSHIT
 class ContextPooler(nn.Module):
     """ContextPooler for DeBERTa-v2/v3, which takes the first token's hidden state."""
 
@@ -85,10 +90,13 @@ class ContextPooler(nn.Module):
         pooled_output = self.dropout(pooled_output)
         return pooled_output
 
+    # !CHECK AI GENERATED BULLSHIT
+
 
 class SignalDirectionDeberta(DebertaV2PreTrainedModel):
     """DeBERTa-v3 model with two classification heads for signal and direction detection."""
 
+    # !CHECK AI GENERATED BULLSHIT
     def __init__(self, config):
         super().__init__(config)
         self.num_labels_signal = 2
@@ -105,6 +113,7 @@ class SignalDirectionDeberta(DebertaV2PreTrainedModel):
 
         self.post_init()
 
+    # !CHECK AI GENERATED BULLSHIT
     def forward(
         self,
         input_ids=None,
@@ -145,9 +154,11 @@ class SignalDirectionDeberta(DebertaV2PreTrainedModel):
 
 
 # ============================ CUSTOM TRAINERS ============================
+# !CHECK AI GENERATED BULLSHIT
 class ClassifierTrainer(Trainer):
     """Custom Trainer for the dual-head SignalDirectionDeberta model."""
 
+    # !CHECK AI GENERATED BULLSHIT
     def compute_loss(
         self, model, inputs, return_outputs=False, num_items_in_batch=None
     ):
@@ -166,6 +177,7 @@ class ClassifierTrainer(Trainer):
 class AIClassifier:
     """AI system for trading signal extraction using DeBERTa and XLM-RoBERTa."""
 
+    # !CHECK AI GENERATED BULLSHIT
     def __init__(
         self,
         classifier_model_name: str = "microsoft/deberta-v3-base",
@@ -200,6 +212,7 @@ class AIClassifier:
                 os.getenv("AI_CONFIDENCE_THRESHOLD", "0.7")
             )
 
+    # !CHECK AI GENERATED BULLSHIT
     def _iter_training_rows(self) -> Iterable[Dict[str, Any]]:
         """Yields all labeled rows from the database for training."""
         try:
@@ -220,6 +233,7 @@ class AIClassifier:
             logger.exception("Error fetching rows for training")
             return
 
+    # !CHECK AI GENERATED BULLSHIT
     def _direction_to_id(self, val: Any) -> int:
         """Maps various direction representations to a consistent ID."""
         if val is None:
@@ -231,6 +245,7 @@ class AIClassifier:
             return DIRECTION_LABEL2ID["short"]
         return DIRECTION_LABEL2ID["none"]
 
+    # !CHECK AI GENERATED BULLSHIT
     def _build_entity_spans(
         self, text: str, row: Dict[str, Any]
     ) -> List[Tuple[int, int, str]]:
@@ -238,6 +253,7 @@ class AIClassifier:
         spans: List[Tuple[int, int, str]] = []
         lower_text = text.lower()
 
+        # !CHECK AI GENERATED BULLSHIT
         def find_and_add_spans(value: Any, label: str):
             if not value:
                 return
@@ -279,6 +295,7 @@ class AIClassifier:
                 merged.append(s)
         return merged
 
+    # !CHECK AI GENERATED BULLSHIT
     def _align_ner_labels_to_tokens(
         self, encodings, spans: List[Tuple[int, int, str]]
     ) -> List[int]:
@@ -301,6 +318,7 @@ class AIClassifier:
                 labels[i] = -100
         return labels
 
+    # !CHECK AI GENERATED BULLSHIT
     def _build_classifier_dataset(self, rows: List[Dict[str, Any]]) -> Dataset:
         """Builds a dataset for the SignalDirectionDeberta model."""
         data = {
@@ -327,6 +345,7 @@ class AIClassifier:
             data["labels_direction"].append(self._direction_to_id(r.get("direction")))
         return Dataset.from_dict(data)
 
+    # !CHECK AI GENERATED BULLSHIT
     def _build_ner_dataset(self, rows: List[Dict[str, Any]]) -> Dataset:
         """Builds a dataset for the XLM-RoBERTa NER model."""
         data = {"input_ids": [], "attention_mask": [], "labels": []}
@@ -359,6 +378,7 @@ class AIClassifier:
             data["labels"].append(labels)
         return Dataset.from_dict(data)
 
+    # !CHECK AI GENERATED BULLSHIT
     def _create_training_args(
         self, output_dir: str, epochs: int, lr: float
     ) -> TrainingArguments:
@@ -384,6 +404,7 @@ class AIClassifier:
             report_to=[],
         )
 
+    # !CHECK AI GENERATED BULLSHIT
     def _train_classifier(self, output_dir: str, rows: List[Dict[str, Any]]) -> bool:
         """Trains the signal and direction classification model."""
         logger.info("Starting classifier training...")
@@ -420,6 +441,7 @@ class AIClassifier:
             torch.cuda.empty_cache()
         return True
 
+    # !CHECK AI GENERATED BULLSHIT
     def _train_ner(self, output_dir: str, rows: List[Dict[str, Any]]) -> bool:
         """Trains the NER model on signal messages only."""
         logger.info("Starting NER model training...")
@@ -452,6 +474,7 @@ class AIClassifier:
             torch.cuda.empty_cache()
         return True
 
+    # !CHECK AI GENERATED BULLSHIT
     def train_model(self, output_dir: str = "./ai_model") -> bool:
         """Orchestrates the training of both classifier and NER models."""
         try:
@@ -480,6 +503,7 @@ class AIClassifier:
             logger.exception("Model training failed")
             return False
 
+    # !CHECK AI GENERATED BULLSHIT
     def load_model(self, model_path: str = "./ai_model") -> bool:
         """Loads both the classifier and NER models from specified paths."""
         base_path = Path(model_path)
@@ -526,6 +550,7 @@ class AIClassifier:
 
         return classifier_loaded and ner_loaded
 
+    # !CHECK AI GENERATED BULLSHIT
     def predict(self, text: str) -> Tuple[int, float]:
         """Predicts if a text is a signal and returns the label and confidence."""
         if not self.classifier_model:
@@ -552,6 +577,7 @@ class AIClassifier:
             conf, pred = torch.max(probs, dim=-1)
             return int(pred.item()), float(conf.item())
 
+    # !CHECK AI GENERATED BULLSHIT
     def predict_batch(self, texts: List[str]) -> List[Tuple[int, float]]:
         """Performs batch prediction for signal detection."""
         if not self.classifier_model or not texts:
@@ -574,28 +600,47 @@ class AIClassifier:
             conf, pred = torch.max(probs, dim=-1)
             return list(zip(pred.cpu().tolist(), conf.cpu().tolist()))
 
+    # !CHECK AI GENERATED BULLSHIT
     def _decode_ner_predictions(self, ner_encoding, logits) -> Dict[str, List[Any]]:
         """Decodes NER logits into a dictionary of entities."""
         predictions = torch.argmax(logits, dim=2)[0].cpu().tolist()
-        
+
         # Get input_ids properly - handle both tensor and list cases
         if torch.is_tensor(ner_encoding["input_ids"]):
-            input_ids = ner_encoding["input_ids"][0].cpu().tolist() if ner_encoding["input_ids"].dim() > 1 else ner_encoding["input_ids"].cpu().tolist()
+            input_ids = (
+                ner_encoding["input_ids"][0].cpu().tolist()
+                if ner_encoding["input_ids"].dim() > 1
+                else ner_encoding["input_ids"].cpu().tolist()
+            )
         else:
-            input_ids = ner_encoding["input_ids"][0] if isinstance(ner_encoding["input_ids"][0], list) else ner_encoding["input_ids"]
-        
+            input_ids = (
+                ner_encoding["input_ids"][0]
+                if isinstance(ner_encoding["input_ids"][0], list)
+                else ner_encoding["input_ids"]
+            )
+
         tokens = self.ner_tokenizer.convert_ids_to_tokens(input_ids)
 
         entities, current_entity = {}, []
         for i, pred_id in enumerate(predictions):
             # Skip special tokens by checking token types instead of word_ids
-            if i >= len(tokens) or tokens[i] in ['<s>', '</s>', '<pad>', '[CLS]', '[SEP]', '[PAD]']:
+            if i >= len(tokens) or tokens[i] in [
+                "<s>",
+                "</s>",
+                "<pad>",
+                "[CLS]",
+                "[SEP]",
+                "[PAD]",
+            ]:
                 continue
 
             label = self.ner_model.config.id2label[pred_id]
             if label.startswith("B-"):
                 if current_entity:
-                    entity_text = "".join(t.replace("▁", " ").replace("##", "") for _, t in current_entity[1:]).strip()
+                    entity_text = "".join(
+                        t.replace("▁", " ").replace("##", "")
+                        for _, t in current_entity[1:]
+                    ).strip()
                     if entity_text:
                         entities.setdefault(current_entity[0], []).append(entity_text)
                 current_entity = [label[2:], (i, tokens[i])]
@@ -607,19 +652,25 @@ class AIClassifier:
                 current_entity.append((i, tokens[i]))
             else:
                 if current_entity:
-                    entity_text = "".join(t.replace("▁", " ").replace("##", "") for _, t in current_entity[1:]).strip()
+                    entity_text = "".join(
+                        t.replace("▁", " ").replace("##", "")
+                        for _, t in current_entity[1:]
+                    ).strip()
                     if entity_text:
                         entities.setdefault(current_entity[0], []).append(entity_text)
                 current_entity = []
-        
+
         # Handle final entity if exists
         if current_entity:
-            entity_text = "".join(t.replace("▁", " ").replace("##", "") for _, t in current_entity[1:]).strip()
+            entity_text = "".join(
+                t.replace("▁", " ").replace("##", "") for _, t in current_entity[1:]
+            ).strip()
             if entity_text:
                 entities.setdefault(current_entity[0], []).append(entity_text)
-        
+
         return entities
 
+    # !CHECK AI GENERATED BULLSHIT
     def extract_signal_fields(self, text: str) -> Dict[str, Any]:
         """Full pipeline: classify, then extract NER if it's a signal."""
         if not self.classifier_model or not self.ner_model:
@@ -713,6 +764,7 @@ class AIClassifier:
 
         return result
 
+    # !CHECK AI GENERATED BULLSHIT
     def get_uncertain_samples(
         self, texts: List[str], n_samples: int
     ) -> List[Tuple[int, str, float]]:
@@ -729,14 +781,18 @@ class AIClassifier:
         uncertain_samples.sort(key=lambda x: x[2])
         return uncertain_samples[:n_samples]
 
+    # !CHECK AI GENERATED BULLSHIT
+
 
 class ActiveLearningManager:
     """Manages the active learning workflow by suggesting messages for labeling."""
 
+    # !CHECK AI GENERATED BULLSHIT
     def __init__(self, classifier: AIClassifier, db_manager: DatabaseManager):
         self.classifier = classifier
         self.db_manager = db_manager
 
+    # !CHECK AI GENERATED BULLSHIT
     def suggest_next_messages(self, n_suggestions: int = 5) -> List[Dict[str, Any]]:
         logger.info(f"Requesting {n_suggestions} suggestions for active learning.")
         try:
@@ -759,6 +815,7 @@ class ActiveLearningManager:
             logger.exception("Failed to suggest next messages for labeling.")
             return []
 
+    # !CHECK AI GENERATED BULLSHIT
     def get_training_recommendations(self) -> Dict[str, Any]:
         try:
             return self.db_manager.get_training_stats()

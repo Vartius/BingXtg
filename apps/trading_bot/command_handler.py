@@ -2,48 +2,12 @@
 This module defines handlers for user commands sent to the bot via Telegram.
 """
 
-import os
-import json
 import random
 import sys
-import pandas as pd
-import dataframe_image as dfi
 from loguru import logger
 from pyrogram.client import Client
 from pyrogram.types import Message
 from apps.trading_bot.order_handler import place_order
-
-
-# --- DataFrame Styling Functions ---
-
-
-def _style_table(df: pd.DataFrame):
-    """Applies a consistent style to the data table for image export."""
-    styles = [
-        {
-            "selector": "th",
-            "props": [("background-color", "#474747"), ("color", "white")],
-        },
-        {"selector": "td", "props": [("color", "white")]},
-        {"selector": "tr:nth-child(even)", "props": [("background-color", "#353535")]},
-        {"selector": "tr:nth-child(odd)", "props": [("background-color", "#1b1b1b")]},
-    ]
-    return (
-        df.style.set_table_styles(styles)  # type: ignore
-        .background_gradient(subset=["PnL ($)", "PnL (%)"], cmap="RdYlGn")
-        .apply(
-            lambda x: [
-                "background-color: #00FF7F"
-                if v == "long"
-                else "background-color: #DC143C"
-                if v == "short"
-                else ""
-                for v in x
-            ],
-            subset=["Side"],
-        )
-        .format({"PnL ($)": "${:.2f}", "PnL (%)": "{:.2f}%"})
-    )
 
 
 # --- Command Handlers ---
@@ -66,18 +30,7 @@ async def handle_chats_check(client: Client, message: Message, chat_ids: list):
 
 async def handle_list_channels(message: Message):
     """Lists the channels configured in channels.json."""
-    try:
-        with open("data/channels.json", "r", encoding="utf-8") as f:
-            channels = json.load(f)
-        response = "<b>Configured Channels:</b>\n\n" + "\n".join(
-            f"• {ch_data.get('name', 'N/A')} (<code>{ch_id}</code>)"
-            for ch_id, ch_data in channels.items()
-        )
-        await message.reply_text(response)
-    except FileNotFoundError:
-        await message.reply_text("`channels.json` not found.")
-    except json.JSONDecodeError:
-        await message.reply_text("Error reading `channels.json`.")
+    # TODO: Load from database
 
 
 async def handle_stop(message: Message):
@@ -92,56 +45,16 @@ async def handle_add_test_orders(is_simulation: bool):
     logger.info("Adding a batch of test orders.")
     test_coins = ["CRV", "UNI", "BTC", "ETH", "XRP", "STORJ", "AAVE", "SOL"]
     for coin in test_coins:
-        side = random.choice(["long", "short"])
         # Use a dummy channel ID for test orders
-        place_order(
-            channel_id="-1000000000000",
-            coin=coin,
-            side=side,
-            is_simulation=is_simulation,
-        )
+        # TODO: make data for placing test orders
+        data = {}
     logger.success("Finished adding test orders.")
 
 
+# TODO
 async def handle_get_data(client: Client, message: Message):
     """Generates and sends an image of the current trading data table."""
     logger.info(f"Generating data table image for {message.chat.id}.")
-    try:
-        with open("data/table.json", "r", encoding="utf-8") as f:
-            table_data = json.load(f)
-
-        headers = [
-            "Channel",
-            "Coin",
-            "Side",
-            "Margin ($)",
-            "Entry Price",
-            "Current Price",
-            "PnL ($)",
-            "PnL (%)",
-        ]
-        df = pd.DataFrame(table_data.get("orders", []), columns=headers)
-
-        if df.empty:
-            await message.reply_text("No open orders to display.")
-            return
-
-        df_styled = _style_table(df)
-        image_path = "table_export.png"
-        dfi.export(df_styled, image_path, table_conversion="matplotlib")  # type: ignore
-
-        caption = (
-            f"<b>Balance:</b> ${table_data.get('balance', 'N/A'):.2f}\n"
-            f"<b>Available:</b> ${table_data.get('available_balance', 'N/A'):.2f}\n"
-            f"<b>Global Winrate:</b> {table_data.get('winrate', 'N/A')}%"
-        )
-        await client.send_photo(message.chat.id, image_path, caption=caption)
-        os.remove(image_path)
-    except FileNotFoundError:
-        await message.reply_text("`table.json` not found. No data to display.")
-    except Exception as e:
-        logger.error(f"Failed to generate or send data image: {e}")
-        await message.reply_text("An error occurred while generating the data image.")
 
 
 async def handle_command(
@@ -158,5 +71,16 @@ async def handle_command(
         await handle_add_test_orders(is_simulation)
     elif command == ".getdata":
         await handle_get_data(client, message)
+    elif command == ".help":
+        help_text = (
+            "<b>Available Commands:</b>\n"
+            "• <code>.chatscheck</code> - Verify access to configured channels.\n"
+            "• <code>.chats</code> - List configured channels.\n"
+            "• <code>.stop</code> - Stop the bot gracefully.\n"
+            "• <code>.addtestorders</code> - Add random test orders (simulation mode only).\n"
+            "• <code>.getdata</code> - Get an image of current trading data.\n"
+            "• <code>.help</code> - Show this help message."
+        )
+        await message.reply_text(help_text)
     else:
         await message.reply_text(f"Unknown command: `{command}`")

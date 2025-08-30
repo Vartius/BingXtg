@@ -4,9 +4,23 @@
   /* Trading Dashboard Specific Styling */
   .trading-stats {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
     gap: 1.5rem;
     margin-bottom: 2rem;
+  }
+  
+  @media (max-width: 768px) {
+    .trading-stats {
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 1rem;
+    }
+  }
+  
+  @media (max-width: 480px) {
+    .trading-stats {
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+    }
   }
   
   .stat-card {
@@ -48,7 +62,8 @@
     background: linear-gradient(135deg, var(--ctp-mantle), var(--ctp-surface0));
     border: 1px solid var(--ctp-surface1);
     border-radius: 16px;
-    overflow: hidden;
+    overflow-x: auto;
+    overflow-y: hidden;
     box-shadow: 
       0 12px 40px rgba(0,0,0,.3), 
       inset 0 1px 0 rgba(139, 213, 202, 0.1);
@@ -56,16 +71,41 @@
   
   .orders-table {
     width: 100%;
+    min-width: 1200px;
     border-collapse: collapse;
     margin: 0;
   }
   
   .orders-table th,
   .orders-table td {
-    padding: 1rem;
+    padding: 0.75rem 0.5rem;
     text-align: left;
     border-bottom: 1px solid var(--ctp-surface1);
+    white-space: nowrap;
   }
+  
+  .orders-table th {
+    font-size: 0.8rem;
+    min-width: 80px;
+  }
+  
+  .orders-table td {
+    font-size: 0.85rem;
+  }
+  
+  /* Specific column width constraints */
+  .orders-table th:nth-child(1), .orders-table td:nth-child(1) { width: 60px; } /* ID */
+  .orders-table th:nth-child(2), .orders-table td:nth-child(2) { width: 120px; } /* Channel */
+  .orders-table th:nth-child(3), .orders-table td:nth-child(3) { width: 80px; } /* Coin */
+  .orders-table th:nth-child(4), .orders-table td:nth-child(4) { width: 80px; } /* Side */
+  .orders-table th:nth-child(5), .orders-table td:nth-child(5) { width: 100px; } /* Targets */
+  .orders-table th:nth-child(6), .orders-table td:nth-child(6) { width: 80px; } /* Leverage */
+  .orders-table th:nth-child(7), .orders-table td:nth-child(7) { width: 80px; } /* SL */
+  .orders-table th:nth-child(8), .orders-table td:nth-child(8) { width: 100px; } /* Margin */
+  .orders-table th:nth-child(9), .orders-table td:nth-child(9) { width: 100px; } /* Entry */
+  .orders-table th:nth-child(10), .orders-table td:nth-child(10) { width: 100px; } /* Current */
+  .orders-table th:nth-child(11), .orders-table td:nth-child(11) { width: 100px; } /* PnL $ */
+  .orders-table th:nth-child(12), .orders-table td:nth-child(12) { width: 100px; } /* PnL % */
   
   .orders-table thead {
     background: linear-gradient(90deg, var(--ctp-surface1), var(--ctp-surface2));
@@ -133,9 +173,37 @@
     margin-bottom: 1rem;
     opacity: 0.5;
   }
+  
+  /* Connection status styling */
+  .connection-status {
+    position: fixed;
+    top: 1rem;
+    right: 1rem;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    z-index: 1000;
+    opacity: 0.9;
+  }
+  
+  .status-connected {
+    background: var(--ctp-green);
+    color: var(--ctp-base);
+  }
+  
+  .status-disconnected {
+    background: var(--ctp-yellow);
+    color: var(--ctp-base);
+  }
 </style>
 
 <h2>Trading Dashboard</h2>
+
+<!-- Connection Status Indicator -->
+<div id="connection-status" class="connection-status" style="display: none;">
+  Connecting...
+</div>
 
 <article class="card">
   <h3>Account Overview</h3>
@@ -152,6 +220,26 @@
       <div class="stat-label">Global Winrate</div>
       <div class="stat-value" id="winrate">N/A%</div>
     </div>
+    <div class="stat-card">
+      <div class="stat-label">Total Trades</div>
+      <div class="stat-value" id="total-trades">0</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Wins</div>
+      <div class="stat-value" id="wins" style="color: var(--ctp-green);">0</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Losses</div>
+      <div class="stat-value" id="losses" style="color: var(--ctp-red);">0</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Total Profit</div>
+      <div class="stat-value" id="profit">$0.00</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">ROI</div>
+      <div class="stat-value" id="roi">0.0%</div>
+    </div>
   </div>
 </article>
 
@@ -161,12 +249,16 @@
     <table class="orders-table" id="orders-table">
       <thead>
         <tr>
+          <th>ID</th>
           <th>Channel</th>
           <th>Coin</th>
           <th>Side</th>
+          <th>Targets</th>
+          <th>Leverage</th>
+          <th>SL</th>
           <th>Margin ($)</th>
-          <th>Entry Price</th>
-          <th>Current Price</th>
+          <th>Entry</th>
+          <th>Current</th>
           <th>PnL ($)</th>
           <th>PnL (%)</th>
         </tr>

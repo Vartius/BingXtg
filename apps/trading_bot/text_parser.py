@@ -6,10 +6,27 @@ to identify potential trading signals based on pre-configured rules.
 import re
 from loguru import logger
 from typing import Optional, List, Dict
+from utils.ai_assistant import AIClassifier
+
+# Initialize AI classifier instance
+_ai_classifier = None
+
+
+def _get_ai_classifier() -> AIClassifier:
+    """Get or create AI classifier instance with lazy loading."""
+    global _ai_classifier
+    if _ai_classifier is None:
+        _ai_classifier = AIClassifier()
+        # Try to load the trained model
+        if not _ai_classifier.load_model("./ai_model"):
+            logger.warning(
+                "AI model not found or failed to load. AI parsing will return None."
+            )
+    return _ai_classifier
 
 
 def parse_message_for_signal(
-    text: str, channel_id: str, channels_config: Dict
+    text: str, channel_id: int, channels_config: Dict
 ) -> Optional[List[str]]:
     """
     Parses a message text to find a trading signal (coin and side).
@@ -61,4 +78,49 @@ def parse_message_for_signal(
         return None
     except Exception as e:
         logger.error(f"An unexpected error occurred in text_parser: {e}")
+        return None
+
+
+def ai_parse_message_for_signal(text: str) -> Optional[dict]:
+    """
+    Uses AI to parse a message text to find a trading signal (all data).
+
+    Args:
+        text: The text content of the message.
+
+    Returns:
+        A dictionary containing parsed signal data if found, otherwise None.
+    """
+    try:
+        # Get AI classifier instance
+        classifier = _get_ai_classifier()
+
+        # If classifier is not available (model not loaded), return None
+        if classifier.classifier_model is None:
+            logger.debug("AI classifier model not available for parsing")
+            return None
+
+        # Extract signal fields using AI
+        result = classifier.extract_signal_fields(text)
+
+        # Only return result if it's detected as a signal with sufficient confidence
+        if result.get("is_signal", False) and result.get("confidence", 0.0) >= 0.5:
+            # Convert direction from numeric to string for consistency
+            direction_value = result.get("direction")
+            if direction_value is not None:
+                direction_map = {0: "long", 1: "short"}
+                result["direction"] = direction_map.get(
+                    direction_value, direction_value
+                )
+
+            logger.info(f"AI detected signal: {result}")
+            return result
+        else:
+            logger.debug(
+                f"AI did not detect signal or confidence too low: {result.get('confidence', 0.0)}"
+            )
+            return None
+
+    except Exception as e:
+        logger.error(f"Error in AI parsing: {e}")
         return None

@@ -29,6 +29,7 @@ logger = logging.getLogger(__name__)
 DB_PATH: str = str(CONFIG_DB_PATH)
 
 
+# !CHECK AI GENERATED BULLSHIT
 def _ensure_services():
     if (
         services.db_manager is None
@@ -38,6 +39,7 @@ def _ensure_services():
         services.init_services(DB_PATH)
 
 
+# !CHECK AI GENERATED BULLSHIT
 def _check_creds() -> Tuple[HttpResponse | int, str | None]:
     """Validate and return Telegram API credentials from environment variables."""
     if not API_ID or not API_HASH:
@@ -49,6 +51,7 @@ def _check_creds() -> Tuple[HttpResponse | int, str | None]:
     return API_ID, API_HASH
 
 
+# !CHECK AI GENERATED BULLSHIT
 def dashboard(request: HttpRequest) -> HttpResponse:
     _ensure_services()
     db = services.db_manager
@@ -69,6 +72,7 @@ def dashboard(request: HttpRequest) -> HttpResponse:
     )
 
 
+# !CHECK AI GENERATED BULLSHIT
 @require_http_methods(["POST"])
 def refresh_channel_names(request: HttpRequest) -> HttpResponse:
     api_id, api_hash = _check_creds()
@@ -83,6 +87,7 @@ def refresh_channel_names(request: HttpRequest) -> HttpResponse:
         return redirect("/ai/?msg=" + f"Error: {e}")
 
 
+# !CHECK AI GENERATED BULLSHIT
 @require_http_methods(["GET", "POST"])
 def extract_messages(request: HttpRequest) -> HttpResponse:
     message: Optional[str] = None
@@ -106,6 +111,7 @@ def extract_messages(request: HttpRequest) -> HttpResponse:
     return render(request, "extract.html", {"message": message})
 
 
+# !CHECK AI GENERATED BULLSHIT
 @require_http_methods(["POST"])
 def extract_single(request: HttpRequest) -> HttpResponse:
     api_id, api_hash = _check_creds()
@@ -133,6 +139,7 @@ def extract_single(request: HttpRequest) -> HttpResponse:
     return render(request, "extract.html", {"message": message})
 
 
+# !CHECK AI GENERATED BULLSHIT
 @require_http_methods(["GET", "POST"])
 def train_model(request: HttpRequest) -> HttpResponse:
     status: Optional[str] = None
@@ -148,6 +155,7 @@ def train_model(request: HttpRequest) -> HttpResponse:
     return render(request, "train.html", {"status": status})
 
 
+# !CHECK AI GENERATED BULLSHIT
 @require_http_methods(["GET"])
 def label(request: HttpRequest) -> HttpResponse:
     """Labeling over unlabeled messages (messages table) with round-robin across channels.
@@ -240,8 +248,12 @@ def label(request: HttpRequest) -> HttpResponse:
                 if ai_extracted:
                     logger.info(f"AI extracted data for template: {ai_extracted}")
                     # Convert targets list to JSON string for JavaScript consumption
-                    if ai_extracted.get("targets") and isinstance(ai_extracted["targets"], list):
-                        ai_extracted["targets_json"] = json.dumps(ai_extracted["targets"])
+                    if ai_extracted.get("targets") and isinstance(
+                        ai_extracted["targets"], list
+                    ):
+                        ai_extracted["targets_json"] = json.dumps(
+                            ai_extracted["targets"]
+                        )
                 else:
                     logger.warning("AI extraction returned empty result")
             except Exception as e:
@@ -268,6 +280,7 @@ def label(request: HttpRequest) -> HttpResponse:
     )
 
 
+# !CHECK AI GENERATED BULLSHIT
 @require_http_methods(["POST"])
 def save_label(request: HttpRequest) -> HttpResponse:
     """Save label with all signal fields."""
