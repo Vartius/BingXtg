@@ -9,6 +9,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const roiEl = document.getElementById('roi');
     const tableBody = document.querySelector('#orders-table tbody');
     const emptyState = document.getElementById('empty-state');
+    const simulationModeEl = document.getElementById('simulation-mode');
 
     // --- Core UI Update Function ---
     function updateUI(data) {
@@ -18,6 +19,13 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!data || typeof data !== 'object') {
             console.warn('Invalid data received:', data);
             return;
+        }
+
+        // Show/hide simulation mode indicator
+        if (data.is_simulation === true) {
+            simulationModeEl.style.display = 'block';
+        } else {
+            simulationModeEl.style.display = 'none';
         }
 
         // Update stat cards with new format
@@ -161,7 +169,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 wins: 0,
                 losses: 0,
                 profit: 0.0,
-                roi: 0.0
+                roi: 0.0,
+                is_simulation: false
             };
             updateUI(defaultData);
         }
@@ -176,7 +185,8 @@ document.addEventListener('DOMContentLoaded', function() {
             wins: 0,
             losses: 0,
             profit: 0.0,
-            roi: 0.0
+            roi: 0.0,
+            is_simulation: false
         };
         updateUI(defaultData);
     }

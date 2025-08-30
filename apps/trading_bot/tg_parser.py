@@ -177,10 +177,42 @@ def start_telegram_parser(is_simulation: bool):
     """
     Initializes and starts all components of the bot.
     """
+    import sqlite3
+
     global IS_SIMULATION
     IS_SIMULATION = is_simulation
     mode = "Simulation" if is_simulation else "Live Trading"
     logger.info(f"Starting bot in {mode} mode.")
+
+    # Store simulation mode state in database for dashboard access
+    db_path = os.getenv("DB_PATH", "total.db")
+    try:
+        with sqlite3.connect(db_path) as conn:
+            conn.execute("PRAGMA foreign_keys=ON")
+            conn.execute("PRAGMA journal_mode=WAL")
+            conn.execute("PRAGMA synchronous=NORMAL")
+
+            # Create app_state table if it doesn't exist
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS app_state (
+                    key TEXT PRIMARY KEY,
+                    value TEXT NOT NULL
+                )
+            """)
+
+            # Store simulation mode state
+            simulation_value = "true" if is_simulation else "false"
+            conn.execute(
+                """
+                INSERT OR REPLACE INTO app_state (key, value) 
+                VALUES ('simulation_mode', ?)
+            """,
+                (simulation_value,),
+            )
+
+            logger.info(f"Set simulation_mode in database to: {simulation_value}")
+    except Exception as e:
+        logger.error(f"Failed to store simulation mode in database: {e}")
 
     # Start the background thread for updating orders and GUI data
     Thread(target=updater_thread_worker, daemon=True).start()

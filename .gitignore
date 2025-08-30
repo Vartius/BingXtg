@@ -30,3 +30,4 @@ staticfiles/
 *.session*
 *-shm
 *-wal
+PR_DESCRIPTION.md

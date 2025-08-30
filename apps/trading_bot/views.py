@@ -1,3 +1,4 @@
+import json
 import sqlite3
 import os
 from django.shortcuts import render
@@ -14,7 +15,7 @@ def dashboard(request):
         request,
         "trading_dashboard.html",
         {
-            "initial_data": initial_data  # Pass as Python object, not JSON string
+            "initial_data": json.dumps(initial_data)  # Pass as a JSON string
         },
     )
 
@@ -40,8 +41,8 @@ def _get_dashboard_data():
         Dictionary containing dashboard data with the following structure:
         {
             "orders": [...],  # List of open trades
-            "balance": 0.0,   # Total balance from BingX
-            "available_balance": 0.0,  # Available balance from BingX
+            "balance": 0.0,   # Total balance (BingX API or simulated)
+            "available_balance": 0.0,  # Available balance (BingX API or simulated)
             "winrate": 0.0,   # Win rate from trading_stats
             "total_trades": 0,  # Total trades count
             "wins": 0,        # Number of wins
@@ -52,13 +53,63 @@ def _get_dashboard_data():
     """
     try:
         db_path = os.getenv("DB_PATH", "total.db")
+        start_balance = float(os.getenv("START_BALANCE", "0"))
 
-        # Get balance from BingX API
-        balance, available_balance = get_balance()
-        if balance is None:
-            balance = 0.0
-        if available_balance is None:
-            available_balance = 0.0
+        # Check if we're in simulation mode by looking at app_state
+        is_simulation = False
+        with sqlite3.connect(db_path) as conn:
+            conn.execute("PRAGMA foreign_keys=ON")
+            conn.execute("PRAGMA journal_mode=WAL")
+            conn.execute("PRAGMA synchronous=NORMAL")
+
+            # Create app_state table if it doesn't exist
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS app_state (
+                    key TEXT PRIMARY KEY,
+                    value TEXT NOT NULL
+                )
+            """)
+
+            cur = conn.cursor()
+            cur.execute(
+                "SELECT value FROM app_state WHERE key = ?", ("simulation_mode",)
+            )
+            row = cur.fetchone()
+            is_simulation = row and row[0] == "true"
+
+        # Get balance based on mode
+        if is_simulation:
+            # Simulation mode: calculate balance from START_BALANCE + closed trades P&L
+            with sqlite3.connect(db_path) as conn:
+                cur = conn.cursor()
+
+                # Get total P&L from closed trades
+                cur.execute(
+                    "SELECT IFNULL(SUM(pnl), 0) FROM trades WHERE status = 'closed'"
+                )
+                total_pnl = cur.fetchone()[0] or 0.0
+
+                # Calculate current balance (START_BALANCE + total P&L)
+                balance = start_balance + total_pnl
+
+                # Calculate used margin from open orders
+                cur.execute(
+                    "SELECT IFNULL(SUM(margin), 0) FROM trades WHERE status IN ('open', 'waiting')"
+                )
+                used_margin = cur.fetchone()[0] or 0.0
+
+                # Available balance = current balance - used margin
+                available_balance = balance - used_margin
+
+                # Ensure available balance doesn't go negative
+                available_balance = max(0.0, available_balance)
+        else:
+            # Live mode: get balance from BingX API
+            balance, available_balance = get_balance()
+            if balance is None:
+                balance = 0.0
+            if available_balance is None:
+                available_balance = 0.0
 
         with sqlite3.connect(db_path) as conn:
             conn.execute("PRAGMA foreign_keys=ON")
@@ -157,6 +208,7 @@ def _get_dashboard_data():
                 "losses": int(losses),
                 "profit": float(profit),
                 "roi": float(roi),
+                "is_simulation": is_simulation,
             }
 
     except Exception as e:
@@ -172,4 +224,5 @@ def _get_dashboard_data():
             "losses": 0,
             "profit": 0.0,
             "roi": 0.0,
+            "is_simulation": False,
         }
