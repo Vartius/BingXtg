@@ -201,14 +201,18 @@
   /* Connection status styling */
   .connection-status {
     position: fixed;
-    top: 1rem;
-    right: 1rem;
+    bottom: 1rem;
+    left: 1rem;
     padding: 0.5rem 1rem;
     border-radius: 8px;
     font-size: 0.8rem;
     font-weight: 600;
     z-index: 1000;
     opacity: 0.9;
+    max-width: 300px;
+    text-align: center;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    transition: all 0.3s ease;
   }
   
   .status-connected {
@@ -216,9 +220,32 @@
     color: var(--ctp-base);
   }
   
-  .status-disconnected {
+  .status-connecting {
+    background: var(--ctp-blue);
+    color: var(--ctp-base);
+  }
+  
+  .status-reconnecting {
     background: var(--ctp-yellow);
     color: var(--ctp-base);
+    animation: pulse 1.5s infinite;
+  }
+  
+  .status-disconnected {
+    background: var(--ctp-red);
+    color: var(--ctp-base);
+  }
+  
+  .status-error {
+    background: var(--ctp-red);
+    color: var(--ctp-base);
+    animation: pulse 2s infinite;
+  }
+  
+  @keyframes pulse {
+    0% { opacity: 0.9; }
+    50% { opacity: 0.6; }
+    100% { opacity: 0.9; }
   }
   
   /* Simulation mode indicator */
@@ -239,11 +266,6 @@
 </style>
 
 <h2>Trading Dashboard</h2>
-
-<!-- Connection Status Indicator -->
-<div id="connection-status" class="connection-status" style="display: none;">
-  Connecting...
-</div>
 
 <!-- Simulation Mode Indicator -->
 <div id="simulation-mode" class="simulation-mode" style="display: none;">
@@ -322,6 +344,11 @@
     </div>
   </div>
 </article>
+
+<!-- Connection Status Indicator (positioned at bottom-left) -->
+<div id="connection-status" class="connection-status" style="display: none;">
+  Connecting...
+</div>
 
 {{ initial_data|json_script:"initial-data" }}
 {% endblock %}
