@@ -191,102 +191,86 @@ document.addEventListener('DOMContentLoaded', function() {
         updateUI(defaultData);
     }
 
-    let fallbackInterval;
     let websocketConnected = false;
+    let reconnectInterval;
+    let dashboardSocket;
+    let reconnectAttempts = 0;
+    const reconnectDelay = 5000; // 5 seconds between reconnection attempts
 
-    // --- WebSocket Connection ---
-    const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-    const dashboardSocket = new WebSocket(
-        protocol + '://' + window.location.host + '/ws/dashboard/'
-    );
-
-    // Show connection status indicator
-    const statusEl = document.getElementById('connection-status');
-    if (statusEl) {
-        statusEl.style.display = 'block';
-        statusEl.textContent = 'Connecting...';
-        statusEl.className = 'connection-status status-disconnected';
+    function createWebSocket() {
+        const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+        return new WebSocket(protocol + '://' + window.location.host + '/ws/dashboard/');
     }
 
-    dashboardSocket.onopen = function(e) {
-        console.log("WebSocket connection established.");
-        websocketConnected = true;
-        // Clear fallback polling if WebSocket is connected
-        if (fallbackInterval) {
-            clearInterval(fallbackInterval);
-            fallbackInterval = null;
-        }
-        
-        // Show connection status if there's a status element
-        const statusEl = document.getElementById('connection-status');
-        if (statusEl) {
-            statusEl.textContent = 'Connected';
-            statusEl.className = 'connection-status status-connected';
-        }
-    };
+    function connectWebSocket() {
+        updateConnectionStatus('connecting', 'Connecting...');
+        dashboardSocket = createWebSocket();
 
-    dashboardSocket.onmessage = function(e) {
-        try {
-            const data = JSON.parse(e.data);
-            console.log('WebSocket data received:', data);
-            // Check if data has message property, otherwise use data directly
-            const messageData = data.message || data;
-            updateUI(messageData);
-        } catch (error) {
-            console.error('Error parsing WebSocket message:', error, 'Raw data:', e.data);
-        }
-    };
-
-    dashboardSocket.onclose = function(e) {
-        console.error('Dashboard socket closed unexpectedly. Code:', e.code, 'Reason:', e.reason);
-        websocketConnected = false;
-        
-        // Show connection status if there's a status element
-        const statusEl = document.getElementById('connection-status');
-        if (statusEl) {
-            statusEl.textContent = 'Disconnected (using polling)';
-            statusEl.className = 'connection-status status-disconnected';
-        }
-        
-        // Start fallback polling when WebSocket disconnects
-        startFallbackPolling();
-    };
-
-    dashboardSocket.onerror = function(err) {
-        console.error('WebSocket encountered error:', err);
-        websocketConnected = false;
-        dashboardSocket.close();
-    };
-
-    // --- Fallback REST API Polling ---
-    function startFallbackPolling() {
-        if (fallbackInterval) return; // Already polling
-        
-        console.log('Starting fallback REST API polling...');
-        fallbackInterval = setInterval(async () => {
-            if (websocketConnected) {
-                clearInterval(fallbackInterval);
-                fallbackInterval = null;
-                return;
+        dashboardSocket.onopen = function(e) {
+            console.log("WebSocket connection established.");
+            websocketConnected = true;
+            reconnectAttempts = 0;
+            
+            // Clear reconnection intervals
+            if (reconnectInterval) {
+                clearInterval(reconnectInterval);
+                reconnectInterval = null;
             }
             
+            updateConnectionStatus('connected', 'Connected via WebSocket');
+        };
+
+        dashboardSocket.onmessage = function(e) {
             try {
-                const response = await fetch('/api/dashboard-data/');
-                if (response.ok) {
-                    const data = await response.json();
-                    console.log('REST API data received:', data);
-                    updateUI(data);
-                }
+                const data = JSON.parse(e.data);
+                console.log('WebSocket data received:', data);
+                // Check if data has message property, otherwise use data directly
+                const messageData = data.message || data;
+                updateUI(messageData);
             } catch (error) {
-                console.error('Error fetching data via REST API:', error);
+                console.error('Error parsing WebSocket message:', error, 'Raw data:', e.data);
             }
-        }, 3000); // Poll every 3 seconds
+        };
+
+        dashboardSocket.onclose = function(e) {
+            console.log('WebSocket closed. Code:', e.code, 'Reason:', e.reason);
+            websocketConnected = false;
+            
+            // Immediately attempt to reconnect with infinite retries
+            scheduleReconnect();
+        };
+
+        dashboardSocket.onerror = function(err) {
+            console.error('WebSocket encountered error:', err);
+            websocketConnected = false;
+        };
     }
 
-    // Start fallback polling after a delay if WebSocket doesn't connect
-    setTimeout(() => {
-        if (!websocketConnected) {
-            startFallbackPolling();
+    function scheduleReconnect() {
+        if (reconnectInterval) return; // Already scheduled
+
+        reconnectAttempts++;
+        updateConnectionStatus('reconnecting', `Reconnecting... (attempt ${reconnectAttempts})`);
+        
+        reconnectInterval = setTimeout(() => {
+            reconnectInterval = null;
+            if (!websocketConnected) {
+                console.log(`Attempting WebSocket reconnection (attempt ${reconnectAttempts})`);
+                connectWebSocket();
+            }
+        }, reconnectDelay);
+    }
+
+    // --- Connection Management ---
+    function updateConnectionStatus(status, message) {
+        const statusEl = document.getElementById('connection-status');
+        if (statusEl) {
+            statusEl.style.display = 'block';
+            statusEl.textContent = message;
+            statusEl.className = `connection-status status-${status}`;
         }
-    }, 2000);
+    }
+
+    // --- Initialize Connection ---
+    connectWebSocket();
 });
