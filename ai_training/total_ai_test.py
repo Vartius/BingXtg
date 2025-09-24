@@ -73,7 +73,7 @@ class TotalAITester:
 
             # Try to load NER model
             try:
-                self.nlp_ner = spacy.load("./ai_model_fixed")
+                self.nlp_ner = spacy.load("./ner_model")
                 logger.info("NER model loaded successfully")
             except OSError:
                 logger.warning("NER model not found, will skip NER evaluation")

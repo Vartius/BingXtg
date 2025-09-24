@@ -19,7 +19,7 @@ from ai_training.utils import (
 )
 
 
-def train_custom_ner(train_data, dev_data, output_dir="./ai_model_fixed", n_iter=20):
+def train_custom_ner(train_data, dev_data, output_dir="./ner_model", n_iter=20):
     """Train custom NER model with proper alignment"""
 
     print("🚀 Creating multilingual spaCy model...")
@@ -119,7 +119,7 @@ def main():
 
         # Now try loading from disk
         print("\nTesting loaded model from disk:")
-        nlp_loaded = spacy.load("./ai_model_fixed")
+        nlp_loaded = spacy.load("./ner_model")
         doc_loaded = nlp_loaded(test_text_normalized)
 
         print("Entities found by loaded model:")
@@ -136,7 +136,7 @@ def main():
         traceback.print_exc()
 
     print("\n✅ Model training completed successfully!")
-    print("📁 Model saved to: ./ai_model_fixed")
+    print("📁 Model saved to: ./ner_model")
     print(f"📊 Training examples: {len(train_examples)}")
     print(f"📊 Development examples: {len(dev_examples)}")
     print("🎯 Alignment issues resolved: Zero spaCy alignment warnings!")

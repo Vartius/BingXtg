@@ -18,7 +18,7 @@ class AIInferenceService:
     Uses three trained spaCy models:
     - is_signal_model: Binary classification to detect if message contains trading signal
     - direction_model: Classify trading direction (LONG/SHORT)
-    - ai_model_fixed: Named Entity Recognition to extract coins, targets, stop losses
+    - ner_model: Named Entity Recognition to extract coins, targets, stop losses
     """
 
     def __init__(self):
@@ -32,7 +32,7 @@ class AIInferenceService:
         self.project_root = Path(__file__).parent.parent
         self.is_signal_model_path = self.project_root / "is_signal_model"
         self.direction_model_path = self.project_root / "direction_model"
-        self.ner_model_path = self.project_root / "ai_model_fixed"
+        self.ner_model_path = self.project_root / "ner_model"
 
     def normalize_text(self, text: str) -> str:
         """

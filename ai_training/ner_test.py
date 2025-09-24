@@ -22,7 +22,7 @@ test_text_normalized = normalize_text(test_text)
 print(f"Original test text: {test_text}")
 print(f"Normalized test text: {test_text_normalized}")
 
-nlp_loaded = spacy.load("./ai_model_fixed")
+nlp_loaded = spacy.load("./ner_model")
 doc_loaded = nlp_loaded(test_text_normalized)
 
 print("Entities found by loaded model:")
