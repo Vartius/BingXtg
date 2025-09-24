@@ -15,7 +15,6 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 
-# !CHECK AI GENERATED BULLSHIT
 class DatabaseManager:
     """
     Centralized database manager for all SQL operations in the project.
@@ -24,7 +23,6 @@ class DatabaseManager:
     operations for messages and labels.
     """
 
-    # !CHECK AI GENERATED BULLSHIT
     def __init__(self, db_path: os.PathLike[str] | str = "messages.db"):
         """
         Initialize the database manager.
@@ -41,7 +39,6 @@ class DatabaseManager:
             # In case of race conditions or permissions, log and continue
             logger.exception("Auto initialization of database failed.")
 
-    # !CHECK AI GENERATED BULLSHIT
     def _ensure_database_exists(self) -> None:
         """Ensure the database file and its parent directory exist."""
         try:
@@ -51,7 +48,6 @@ class DatabaseManager:
             logger.error(f"Failed to create directory for database: {e}")
             raise
 
-    # !CHECK AI GENERATED BULLSHIT
     def _get_connection(self) -> sqlite3.Connection:
         """
         Get a database connection with row_factory for dict-like access.
@@ -63,7 +59,6 @@ class DatabaseManager:
         conn.row_factory = sqlite3.Row
         return conn
 
-    # !CHECK AI GENERATED BULLSHIT
     def _execute_query(
         self, query: str, params: tuple = (), fetch_type: str = "none"
     ) -> _Any:
@@ -124,8 +119,6 @@ class DatabaseManager:
             )
             raise
 
-    # !CHECK AI GENERATED BULLSHIT
-    # Helper: list columns of a table to gate ALTER TABLE operations
     def _get_table_columns(self, table_name: str) -> set[str]:
         """Return a set of column names for the given table."""
         try:
@@ -147,7 +140,6 @@ class DatabaseManager:
         return cols
 
     # ==================== DATABASE INITIALIZATION ====================
-    # !CHECK AI GENERATED BULLSHIT
     def init_database(self) -> None:
         """Initialize the database and create all required tables."""
         logger.info(f"Initializing database at {self.db_path}...")
@@ -158,7 +150,6 @@ class DatabaseManager:
         self.init_app_state_table()
         logger.info("Database initialized successfully.")
 
-    # !CHECK AI GENERATED BULLSHIT
     def init_messages_table(self) -> None:
         """Create the 'messages' table if it doesn't exist."""
         query = """
@@ -174,7 +165,6 @@ class DatabaseManager:
         self._execute_query(query)
         logger.debug("Table 'messages' is ready.")
 
-    # !CHECK AI GENERATED BULLSHIT
     def init_labeled_table(self) -> None:
         """Create the 'labeled' table if it doesn't exist."""
         query = """
@@ -196,7 +186,6 @@ class DatabaseManager:
         """
         self._execute_query(query)
 
-        # Only add missing columns by inspecting the existing schema first
         try:
             existing = self._get_table_columns("labeled")
             columns_to_add = [
@@ -219,7 +208,6 @@ class DatabaseManager:
 
         logger.debug("Table 'labeled' is ready.")
 
-    # !CHECK AI GENERATED BULLSHIT
     def init_channels_table(self) -> None:
         """Create the 'channels' table if it doesn't exist."""
         query = """
@@ -234,7 +222,6 @@ class DatabaseManager:
         logger.debug("Table 'channels' is ready.")
 
     # ==================== APP STATE (PERSISTENT) ====================
-    # !CHECK AI GENERATED BULLSHIT
     def init_app_state_table(self) -> None:
         """Create a simple key-value table for app-level state (counters, pointers)."""
         query = """
@@ -246,8 +233,6 @@ class DatabaseManager:
         self._execute_query(query)
         logger.debug("Table 'app_state' is ready.")
 
-    # !CHECK AI GENERATED BULLSHIT
-
     def get_app_state(self, key: str) -> Optional[str]:
         """Get a value from app_state by key."""
         row = self._execute_query(
@@ -255,7 +240,6 @@ class DatabaseManager:
         )
         return row["value"] if row else None
 
-    # !CHECK AI GENERATED BULLSHIT
     def set_app_state(self, key: str, value: str) -> None:
         """Upsert a key-value pair into app_state."""
         self._execute_query(
@@ -265,7 +249,6 @@ class DatabaseManager:
         )
 
     # ==================== MESSAGE OPERATIONS ====================
-    # !CHECK AI GENERATED BULLSHIT
     def save_message(self, channel_id: int, message_text: str) -> int:
         """
         Save a message to the messages table, ignoring duplicates.
@@ -283,7 +266,6 @@ class DatabaseManager:
         with self._get_connection() as conn:
             return conn.execute("SELECT last_insert_rowid()").fetchone()[0]
 
-    # !CHECK AI GENERATED BULLSHIT
     def upsert_channel(
         self,
         channel_id: int,
@@ -301,7 +283,6 @@ class DatabaseManager:
         """
         self._execute_query(query, (channel_id, title, username), "none")
 
-    # !CHECK AI GENERATED BULLSHIT
     def get_unlabeled_messages(self, limit: int = 100) -> List[sqlite3.Row]:
         """
         Get messages that haven't been labeled yet.
@@ -322,7 +303,6 @@ class DatabaseManager:
         """
         return self._execute_query(query, (limit,), "all")
 
-    # !CHECK AI GENERATED BULLSHIT
     def get_random_unlabeled_message_from_channel(
         self, channel_id: int
     ) -> Optional[sqlite3.Row]:
@@ -347,7 +327,6 @@ class DatabaseManager:
 
     # ==================== LABEL OPERATIONS ====================
 
-    # !CHECK AI GENERATED BULLSHIT
     def save_label(
         self,
         message_id: int,
@@ -408,7 +387,6 @@ class DatabaseManager:
         with self._get_connection() as conn:
             return conn.execute("SELECT last_insert_rowid()").fetchone()[0]
 
-    # !CHECK AI GENERATED BULLSHIT
     def update_label_by_id(
         self,
         labeled_id: int,
@@ -462,7 +440,6 @@ class DatabaseManager:
             )
         )
 
-    # !CHECK AI GENERATED BULLSHIT
     def get_labeled_data(self) -> List[sqlite3.Row]:
         """
         Get all labeled data, ordered by when they were labeled.
@@ -473,7 +450,6 @@ class DatabaseManager:
         query = "SELECT message, is_signal FROM labeled ORDER BY labeled_at"
         return self._execute_query(query, (), "all")
 
-    # !CHECK AI GENERATED BULLSHIT
     def get_extended_labeled_data(self) -> List[sqlite3.Row]:
         """
         Get all labeled data with extended fields, ordered by when they were labeled.
@@ -489,7 +465,6 @@ class DatabaseManager:
         """
         return self._execute_query(query, (), "all")
 
-    # !CHECK AI GENERATED BULLSHIT
     def get_labeled_message_by_id(self, message_id: int) -> Optional[sqlite3.Row]:
         """
         Get a specific labeled message by its message_id.
@@ -505,150 +480,7 @@ class DatabaseManager:
         """
         return self._execute_query(query, (message_id,), "one")
 
-    # !CHECK AI GENERATED BULLSHIT
-    def get_available_channels_for_extended_labeling(self) -> List[int]:
-        """
-        Get channels that have either incomplete signals or unlabeled messages.
-
-        Returns:
-            A list of integer channel IDs.
-        """
-        query = """
-            SELECT DISTINCT channel_id FROM (
-                -- Channels with incomplete signals (is_signal=True but missing extended fields)
-                SELECT DISTINCT channel_id 
-                FROM labeled 
-                WHERE is_signal = 1 
-                AND (direction IS NULL OR pair IS NULL OR stop_loss IS NULL 
-                     OR leverage IS NULL OR targets IS NULL OR entry IS NULL)
-                UNION
-                -- Channels with unlabeled messages
-                SELECT DISTINCT m.channel_id
-                FROM messages m
-                LEFT JOIN labeled l ON m.id = l.message_id
-                WHERE l.message_id IS NULL
-            )
-            ORDER BY channel_id
-        """
-        rows = self._execute_query(query, (), "all")
-        return [row["channel_id"] for row in rows]
-
-    # !CHECK AI GENERATED BULLSHIT
-    def get_random_incomplete_signal_from_channel(
-        self, channel_id: int
-    ) -> Optional[sqlite3.Row]:
-        """
-        Get a random incomplete signal from a specific channel.
-        An incomplete signal is one where is_signal=True but any extended field is NULL.
-
-        Args:
-            channel_id: The ID of the channel to query.
-
-        Returns:
-            A single random incomplete signal row, or None if none are available.
-        """
-        query = """
-            SELECT * FROM labeled 
-            WHERE channel_id = ? AND is_signal = 1 
-            AND (direction IS NULL OR pair IS NULL OR stop_loss IS NULL 
-                 OR leverage IS NULL OR targets IS NULL OR entry IS NULL)
-            ORDER BY RANDOM()
-            LIMIT 1
-        """
-        return self._execute_query(query, (channel_id,), "one")
-
-    # !CHECK AI GENERATED BULLSHIT
-    def get_available_channels_for_empty_extended_labeling(self) -> List[int]:
-        """
-        Get channels that have signals with all extended fields missing (all NULL).
-
-        Returns:
-            A list of integer channel IDs.
-        """
-        query = """
-            SELECT DISTINCT channel_id
-            FROM labeled
-            WHERE is_signal = 1
-              AND direction IS NULL AND pair IS NULL AND stop_loss IS NULL
-              AND leverage IS NULL AND targets IS NULL AND entry IS NULL
-            ORDER BY channel_id
-        """
-        rows = self._execute_query(query, (), "all")
-        return [row["channel_id"] for row in rows]
-
-    # !CHECK AI GENERATED BULLSHIT
-    def get_random_empty_extended_signal_from_channel(
-        self, channel_id: int
-    ) -> Optional[sqlite3.Row]:
-        """
-        Get a random signal from a specific channel where all extended fields are NULL.
-
-        Args:
-            channel_id: The ID of the channel to query.
-
-        Returns:
-            A single random labeled row with all extended fields NULL, or None if none are available.
-        """
-        query = """
-            SELECT * FROM labeled
-            WHERE channel_id = ? AND is_signal = 1
-              AND direction IS NULL AND pair IS NULL AND stop_loss IS NULL
-              AND leverage IS NULL AND targets IS NULL AND entry IS NULL
-            ORDER BY RANDOM()
-            LIMIT 1
-        """
-        return self._execute_query(query, (channel_id,), "one")
-
-    # !CHECK AI GENERATED BULLSHIT
-    # New: count incomplete extended signals (is_signal=1 with any missing extended field)
-    def count_incomplete_extended_signals(self) -> int:
-        row = self._execute_query(
-            """
-            SELECT COUNT(*) AS cnt
-            FROM labeled 
-            WHERE is_signal = 1 
-              AND (direction IS NULL OR pair IS NULL OR stop_loss IS NULL 
-                   OR leverage IS NULL OR targets IS NULL OR entry IS NULL)
-            """,
-            (),
-            "one",
-        )
-        return int(row["cnt"]) if row else 0
-
-    # ==================== SEQUENTIAL EXTENDED LABELING HELPERS ====================
-    # !CHECK AI GENERATED BULLSHIT
-    def get_next_incomplete_signal_after(
-        self, last_labeled_row_id: Optional[int]
-    ) -> Optional[sqlite3.Row]:
-        """
-        Return the next labeled row (is_signal=1) with any missing extended fields, ordered by labeled.id ascending,
-        strictly after the given labeled row id. If last_labeled_row_id is None, returns the first such row.
-        """
-        params: tuple
-        if last_labeled_row_id is None:
-            query = """
-                SELECT * FROM labeled
-                WHERE is_signal = 1
-                  AND (direction IS NULL OR pair IS NULL OR stop_loss IS NULL
-                       OR leverage IS NULL OR targets IS NULL OR entry IS NULL)
-                ORDER BY id ASC
-                LIMIT 1
-            """
-            params = ()
-        else:
-            query = """
-                SELECT * FROM labeled
-                WHERE id > ? AND is_signal = 1
-                  AND (direction IS NULL OR pair IS NULL OR stop_loss IS NULL
-                       OR leverage IS NULL OR targets IS NULL OR entry IS NULL)
-                ORDER BY id ASC
-                LIMIT 1
-            """
-            params = (last_labeled_row_id,)
-        return self._execute_query(query, params, "one")
-
     # ==================== STATISTICS AND ANALYTICS ====================
-    # !CHECK AI GENERATED BULLSHIT
     def get_available_channels(self) -> List[int]:
         """
         Get a list of distinct channel IDs that still have unlabeled messages.
@@ -666,7 +498,6 @@ class DatabaseManager:
         rows = self._execute_query(query, (), "all")
         return [row["channel_id"] for row in rows]
 
-    # !CHECK AI GENERATED BULLSHIT
     def get_labeling_stats(self) -> Dict[str, int]:
         """
         Get comprehensive statistics about the state of labeling.
@@ -683,7 +514,6 @@ class DatabaseManager:
         stats = self._execute_query(query, (), "one")
         return dict(stats) if stats else {"total": 0, "labeled": 0, "signals": 0}
 
-    # !CHECK AI GENERATED BULLSHIT
     def get_channel_stats(self) -> List[Dict[str, Any]]:
         """
         Get per-channel statistics on total and labeled messages, with channel metadata.
@@ -707,7 +537,6 @@ class DatabaseManager:
         rows = self._execute_query(query, (), "all")
         return [dict(row) for row in rows]
 
-    # !CHECK AI GENERATED BULLSHIT
     def get_training_stats(self) -> Dict[str, Any]:
         """
         Get statistics relevant for AI model training readiness.
@@ -755,7 +584,6 @@ class DatabaseManager:
         }
 
     # ==================== CHANNEL METADATA UTILITIES ====================
-    # !CHECK AI GENERATED BULLSHIT
     def get_channels_missing_metadata(self) -> List[int]:
         """
         Return channel IDs that are missing metadata (title/username) or not present

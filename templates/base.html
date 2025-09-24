@@ -341,10 +341,6 @@
     </ul>
     <ul>
       <li><a href="/" {% if request.path == '/' %}style="color: var(--brand); background: var(--ctp-teal-muted); border-radius: 8px;"{% endif %}>Trading Dashboard</a></li>
-      <li><a href="/ai/" {% if '/ai/' in request.path and 'extract' not in request.path and 'label' not in request.path and 'train' not in request.path %}style="color: var(--brand); background: var(--ctp-teal-muted); border-radius: 8px;"{% endif %}>AI Dashboard</a></li>
-      <li><a href="/ai/extract/" {% if 'extract' in request.path %}style="color: var(--brand); background: var(--ctp-teal-muted); border-radius: 8px;"{% endif %}>Extract</a></li>
-      <li><a href="/ai/label/" {% if 'label' in request.path %}style="color: var(--brand); background: var(--ctp-teal-muted); border-radius: 8px;"{% endif %}>Label</a></li>
-      <li><a href="/ai/train/" {% if 'train' in request.path %}style="color: var(--brand); background: var(--ctp-teal-muted); border-radius: 8px;"{% endif %}>Train</a></li>
     </ul>
   </nav>
   <main class="container">
