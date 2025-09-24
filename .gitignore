@@ -23,7 +23,7 @@ dist/
 wheels/
 *.egg-info
 bkp
-ai_model/
+ai_model*
 .github/
 regexGenAi/
 staticfiles/
