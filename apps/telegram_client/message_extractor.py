@@ -5,10 +5,10 @@ from dotenv import load_dotenv
 from telethon import TelegramClient
 from telethon.tl.custom.dialog import Dialog
 from telethon.tl.custom.message import Message
-from utils.database_manager import DatabaseManager
+from core.database.manager import DatabaseManager
 from pathlib import Path
 
-from utils.config import SESSION_FILE
+from core.config.settings import SESSION_FILE
 
 load_dotenv()
 logger = logging.getLogger(__name__)

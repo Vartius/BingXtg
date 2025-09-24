@@ -2,7 +2,7 @@ import sys
 from django.core.management.base import BaseCommand
 from loguru import logger
 from apps.trading_bot.tg_parser import start_telegram_parser
-from utils.check_configs import check_all
+from core.config.validation import check_all
 
 
 def setup_session(is_simulation: bool):

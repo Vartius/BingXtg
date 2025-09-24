@@ -6,7 +6,7 @@ to identify potential trading signals based on pre-configured rules.
 import re
 from loguru import logger
 from typing import Optional, List, Dict
-from utils.ai_inference import get_ai_service
+from ai.inference.ai_service import get_ai_service
 
 # Initialize AI service instance
 _ai_service = None
