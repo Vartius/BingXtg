@@ -106,13 +106,22 @@ Once configured, you can start the bot from your terminal.
 
 5.  **Access the Web Interface**:
     - Trading Dashboard: http://localhost:8000/
-    - AI Assistant: http://localhost:8000/ai/
     - Admin Panel: http://localhost:8000/admin/
 
 6.  **Start the Trading Bot** (in a separate terminal):
     ```bash
     python manage.py start_bot
     ```
+
+## 🧠 AI Model Training
+
+All AI model training is now done exclusively in the `ai.ipynb` Jupyter notebook. The Django application uses the trained models for inference only.
+
+### Training Process:
+1. Open `ai.ipynb` in Jupyter Lab or VS Code
+2. Follow the notebook cells to train both classifier and NER models
+3. Models are automatically saved to the `ai_model/` directory
+4. The Django application will automatically use the trained models
 
 ## 🐳 Docker Usage
 
@@ -143,7 +152,6 @@ The project follows Django best practices with a modular app structure:
 ```
 BingXtg/
 ├── apps/                     # Django applications
-│   ├── ai_assistant/         # AI classification and training
 │   ├── telegram_client/      # Telegram integration
 │   └── trading_bot/          # Main trading bot functionality
 ├── bingxtg_project/          # Main Django project configuration
@@ -151,6 +159,8 @@ BingXtg/
 ├── static/                   # Static files (CSS, JS, images)
 ├── templates/                # Django templates
 ├── data/                     # Configuration and data files
+├── ai.ipynb                  # AI model training notebook
+├── ai_model/                 # Trained AI models (classifier & NER)
 ├── manage.py                 # Django management script
 └── requirements.txt          # Python dependencies
 ```
@@ -166,12 +176,6 @@ The project includes a modern web interface built with Django:
 - Live order monitoring
 - Performance analytics
 - WebSocket-powered real-time updates
-
-### AI Assistant
-- Message labeling and classification
-- Model training interface
-- Active learning recommendations
-- Data extraction from Telegram channels
 
 ### Admin Panel
 - User management
