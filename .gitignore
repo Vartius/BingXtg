@@ -33,3 +33,4 @@ staticfiles/
 PR_DESCRIPTION.md
 direction_model/
 is_signal_model/
+ner_model/
