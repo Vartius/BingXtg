@@ -17,7 +17,6 @@ logger = logging.getLogger(__name__)
 EntityType = Union[int, str]
 
 
-# !CHECK AI GENERATED BULLSHIT
 class ChannelInfo(TypedDict):
     id: int
     title: str
@@ -28,25 +27,14 @@ class ChannelInfo(TypedDict):
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 
 
-# !CHECK AI GENERATED BULLSHIT
 class MessageExtractor:
     """Handles Telegram message extraction and storage."""
 
-    # !CHECK AI GENERATED BULLSHIT
     def __init__(self, db_path: str = "messages.db", folder_id: Optional[int] = None):
         self.db_path = db_path
         self.folder_id = folder_id or int(os.getenv("FOLDER_ID", 1))
         self.db_manager = DatabaseManager(db_path)
 
-    # !CHECK AI GENERATED BULLSHIT
-    def init_database(self) -> None:
-        """Initializes the database and tables."""
-        try:
-            self.db_manager.init_database()
-        except Exception:
-            logger.exception("Database initialization failed in MessageExtractor.")
-
-    # !CHECK AI GENERATED BULLSHIT
     async def get_crypto_channels(self, client: TelegramClient) -> List[ChannelInfo]:
         """
         Gets all channel IDs from the configured folder in Telegram.
@@ -71,7 +59,6 @@ class MessageExtractor:
                         else None,
                     }
                     crypto_channels.append(channel_info)
-                    # Persist channel metadata
                     try:
                         self.db_manager.upsert_channel(
                             channel_info["id"],
@@ -90,7 +77,6 @@ class MessageExtractor:
             )
             return []
 
-    # !CHECK AI GENERATED BULLSHIT
     async def parse_channel_messages(
         self,
         client: TelegramClient,
@@ -165,7 +151,6 @@ class MessageExtractor:
                 f"An unexpected error occurred while parsing messages from channel: {channel_entity}."
             )
 
-    # !CHECK AI GENERATED BULLSHIT
     async def extract_messages_from_folder(
         self, api_id: int, api_hash: str, limit: Optional[int] = None
     ) -> None:
@@ -177,7 +162,7 @@ class MessageExtractor:
             api_hash: Your Telegram API Hash.
             limit: The maximum number of messages to fetch per channel.
         """
-        self.init_database()
+        self.db_manager.init_database()
 
         async with TelegramClient(SESSION_FILE, api_id, api_hash) as client:
             logger.info("Telegram client started.")
@@ -196,7 +181,6 @@ class MessageExtractor:
 
         logger.info("Message extraction process finished.")
 
-    # !CHECK AI GENERATED BULLSHIT
     async def extract_messages_from_channel(
         self,
         api_id: int,
@@ -217,7 +201,7 @@ class MessageExtractor:
                           - Invite link: "https://t.me/joinchat/XXXXX"
             limit: The maximum number of messages to fetch from the entity.
         """
-        self.init_database()
+        self.db_manager.init_database()
 
         async with TelegramClient(SESSION_FILE, api_id, api_hash) as client:
             logger.info("Telegram client started.")
@@ -272,7 +256,6 @@ class MessageExtractor:
 
         logger.info("Single entity extraction process finished.")
 
-    # !CHECK AI GENERATED BULLSHIT
     async def get_channel_info(
         self, api_id: int, api_hash: str, channel_entity: EntityType
     ) -> Optional[ChannelInfo]:
@@ -318,7 +301,6 @@ class MessageExtractor:
                 logger.exception(f"Error getting entity info for: {channel_entity}")
                 return None
 
-    # !CHECK AI GENERATED BULLSHIT
     async def backfill_channel_metadata(self, api_id: int, api_hash: str) -> int:
         """
         Find channels in the DB that lack a title/username and fetch their metadata

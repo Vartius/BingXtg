@@ -41,7 +41,6 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     # Project apps
     "apps.trading_bot",  # Main trading bot functionality
-    "apps.ai_assistant",  # AI classification and training
     "apps.telegram_client",  # Telegram integration
 ]
 

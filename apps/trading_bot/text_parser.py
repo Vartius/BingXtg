@@ -6,23 +6,22 @@ to identify potential trading signals based on pre-configured rules.
 import re
 from loguru import logger
 from typing import Optional, List, Dict
-from utils.ai_assistant import AIClassifier
+from utils.ai_inference import get_ai_service
 
-# Initialize AI classifier instance
-_ai_classifier = None
+# Initialize AI service instance
+_ai_service = None
 
 
-def _get_ai_classifier() -> AIClassifier:
-    """Get or create AI classifier instance with lazy loading."""
-    global _ai_classifier
-    if _ai_classifier is None:
-        _ai_classifier = AIClassifier()
-        # Try to load the trained model
-        if not _ai_classifier.load_model("./ai_model"):
+def _get_ai_service():
+    """Get or create AI service instance with lazy loading."""
+    global _ai_service
+    if _ai_service is None:
+        _ai_service = get_ai_service()
+        if _ai_service and not _ai_service.is_available():
             logger.warning(
-                "AI model not found or failed to load. AI parsing will return None."
+                "AI models not found or failed to load. AI parsing will return None."
             )
-    return _ai_classifier
+    return _ai_service
 
 
 def parse_message_for_signal(
@@ -92,16 +91,16 @@ def ai_parse_message_for_signal(text: str) -> Optional[dict]:
         A dictionary containing parsed signal data if found, otherwise None.
     """
     try:
-        # Get AI classifier instance
-        classifier = _get_ai_classifier()
+        # Get AI service instance
+        ai_service = _get_ai_service()
 
-        # If classifier is not available (model not loaded), return None
-        if classifier.classifier_model is None:
-            logger.debug("AI classifier model not available for parsing")
+        # If AI service is not available, return None
+        if ai_service is None or not ai_service.is_available():
+            logger.debug("AI service not available for parsing")
             return None
 
         # Extract signal fields using AI
-        result = classifier.extract_signal_fields(text)
+        result = ai_service.extract_signal_fields(text)
 
         # Only return result if it's detected as a signal with sufficient confidence
         if result.get("is_signal", False) and result.get("confidence", 0.0) >= 0.5:
