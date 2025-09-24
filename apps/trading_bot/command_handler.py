@@ -2,41 +2,41 @@
 This module defines handlers for user commands sent to the bot via Telegram.
 """
 
-import random
 import sys
 from loguru import logger
-from pyrogram.client import Client
-from pyrogram.types import Message
-from apps.trading_bot.order_handler import place_order
+from telethon import TelegramClient
+from telethon.events import NewMessage
 
 
 # --- Command Handlers ---
 
 
-async def handle_chats_check(client: Client, message: Message, chat_ids: list):
+async def handle_chats_check(
+    client: TelegramClient, event: NewMessage.Event, chat_ids: list
+):
     """Verifies the bot can access the configured channels."""
     titles = []
     for chat_id in chat_ids:
         try:
-            chat = await client.get_chat(chat_id)
-            titles.append(f"✅ {chat.title or f'Chat {chat_id}'}")
+            entity = await client.get_entity(chat_id)
+            titles.append(f"✅ {getattr(entity, 'title', f'Chat {chat_id}')}")
         except Exception as e:
             logger.error(f"Could not get info for chat {chat_id}: {e}")
             titles.append(f"❌ Error fetching chat {chat_id}")
-    await message.reply_text(
-        "<b>Channel Accessibility Check:</b>\n\n" + "\n".join(titles)
+    await event.reply(
+        "<b>Channel Accessibility Check:</b>\n\n" + "\n".join(titles), parse_mode="html"
     )
 
 
-async def handle_list_channels(message: Message):
+async def handle_list_channels(event: NewMessage.Event):
     """Lists the channels configured in channels.json."""
     # TODO: Load from database
 
 
-async def handle_stop(message: Message):
+async def handle_stop(event: NewMessage.Event):
     """Stops the bot gracefully."""
-    logger.warning(f"Stop command received from {message.chat.id}. Shutting down.")
-    await message.reply_text("Bot is shutting down...")
+    logger.warning(f"Stop command received from {event.chat_id}. Shutting down.")
+    await event.reply("Bot is shutting down...")
     sys.exit(0)  # Exits the entire application
 
 
@@ -47,30 +47,34 @@ async def handle_add_test_orders(is_simulation: bool):
     for coin in test_coins:
         # Use a dummy channel ID for test orders
         # TODO: make data for placing test orders
-        data = {}
+        pass
     logger.success("Finished adding test orders.")
 
 
 # TODO
-async def handle_get_data(client: Client, message: Message):
+async def handle_get_data(client: TelegramClient, event: NewMessage.Event):
     """Generates and sends an image of the current trading data table."""
-    logger.info(f"Generating data table image for {message.chat.id}.")
+    logger.info(f"Generating data table image for {event.chat_id}.")
 
 
 async def handle_command(
-    command: str, client: Client, message: Message, chat_ids: list, is_simulation: bool
+    command: str,
+    client: TelegramClient,
+    event: NewMessage.Event,
+    chat_ids: list,
+    is_simulation: bool,
 ):
     """Routes commands to their respective handlers."""
     if command == ".chatscheck":
-        await handle_chats_check(client, message, chat_ids)
+        await handle_chats_check(client, event, chat_ids)
     elif command == ".chats":
-        await handle_list_channels(message)
+        await handle_list_channels(event)
     elif command == ".stop":
-        await handle_stop(message)
+        await handle_stop(event)
     elif command == ".addtestorders":
         await handle_add_test_orders(is_simulation)
     elif command == ".getdata":
-        await handle_get_data(client, message)
+        await handle_get_data(client, event)
     elif command == ".help":
         help_text = (
             "<b>Available Commands:</b>\n"
@@ -81,6 +85,6 @@ async def handle_command(
             "• <code>.getdata</code> - Get an image of current trading data.\n"
             "• <code>.help</code> - Show this help message."
         )
-        await message.reply_text(help_text)
+        await event.reply(help_text, parse_mode="html")
     else:
-        await message.reply_text(f"Unknown command: `{command}`")
+        await event.reply(f"Unknown command: `{command}`")

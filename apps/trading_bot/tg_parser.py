@@ -8,13 +8,11 @@ import os
 from threading import Thread
 from typing import List, Dict, Optional
 from loguru import logger
-from pyrogram import filters, errors
-from pyrogram.sync import idle
-from pyrogram.client import Client
-from pyrogram.types import Message
+from telethon import TelegramClient, events
+from telethon.errors import ChannelInvalidError, PeerIdInvalidError
 from dotenv import load_dotenv
 
-from .text_parser import parse_message_for_signal, ai_parse_message_for_signal
+from .text_parser import ai_parse_message_for_signal
 from .order_handler import place_order, updater_thread_worker
 from .command_handler import handle_command
 
@@ -33,7 +31,7 @@ except (ValueError, TypeError) as e:
     logger.critical(f"Configuration error: {e}. Please check your .env file.")
     sys.exit(1)
 
-app = Client("my_account", api_id=API_ID, api_hash=API_HASH)
+app = TelegramClient("my_account", api_id=API_ID, api_hash=API_HASH)
 IS_SIMULATION = False
 CHANNELS_CONFIG: Dict = {}
 
@@ -75,26 +73,30 @@ logger.info(f"Loaded {len(CHAT_IDS)} channels from configuration.")
 
 
 # --- Message Handlers ---
-@app.on_message(filters.chat(CHAT_IDS))  # type: ignore
-async def message_handler(client: Client, message: Message):
+@app.on(events.NewMessage())
+async def message_handler(event):
     """
     Primary message handler that listens to configured channels and private messages.
     """
     try:
-        chat_id = message.chat.id
-        text = message.text or message.caption
+        chat_id = event.chat_id
+        text = event.message.text
         if not text:
             return  # Ignore messages with no text content
 
+        # Only process messages from configured chats or private messages
+        if chat_id not in CHAT_IDS and not event.is_private:
+            return
+
         # --- Command Handling (only from 'me' chat) ---
-        if message.from_user and message.from_user.is_self and text.startswith("."):
+        if event.is_private and text.startswith("."):
             command = text.lower().strip()
             if CHAT_IDS is None:
                 logger.error(
                     "No channels configured to listen to. Cannot process commands."
                 )
                 return
-            await handle_command(command, client, message, CHAT_IDS, IS_SIMULATION)
+            await handle_command(command, app, event, CHAT_IDS, IS_SIMULATION)
             return
 
         # --- Signal Processing ---
@@ -123,14 +125,14 @@ async def message_handler(client: Client, message: Message):
 
 
 # --- Application Startup ---
-async def main_telegram_loop():
+def main_telegram_loop():
     """Starts the Telegram client and keeps it running."""
     global CHAT_IDS
     try:
-        await app.start()
-        me = await app.get_me()
+        app.start()
+        me = app.get_me()
         logger.success(
-            f"Telegram client started successfully for user: {me.first_name}"
+            f"Telegram client started successfully for user: {getattr(me, 'first_name', 'Unknown')}"
         )
 
         CHAT_IDS = _load_channel_ids()
@@ -143,12 +145,14 @@ async def main_telegram_loop():
         logger.info(f"Validating access to {len(CHAT_IDS)} configured channels...")
         for chat_id in CHAT_IDS:
             try:
-                chat = await app.get_chat(chat_id)
+                entity = app.get_entity(chat_id)
                 valid_chats.append(chat_id)
-                logger.success(f"✓ Chat {chat_id} ({chat.title}) is accessible")
-            except errors.ChannelInvalid:
+                logger.success(
+                    f"✓ Chat {chat_id} ({getattr(entity, 'title', chat_id)}) is accessible"
+                )
+            except ChannelInvalidError:
                 logger.error(f"✗ Chat {chat_id} is invalid or inaccessible")
-            except errors.PeerIdInvalid:
+            except PeerIdInvalidError:
                 logger.error(f"✗ Chat {chat_id} has invalid peer ID")
             except Exception as e:
                 logger.error(
@@ -164,12 +168,12 @@ async def main_telegram_loop():
             sys.exit(1)
 
         logger.info(f"Listening for signals on {len(CHAT_IDS)} valid channels.")
-        await idle()
+        app.run_until_disconnected()
 
     except Exception as e:
         logger.critical(f"A critical error occurred in the main Telegram loop: {e}")
     finally:
-        await app.stop()
+        app.disconnect()
         logger.warning("Telegram client stopped.")
 
 
@@ -218,5 +222,8 @@ def start_telegram_parser(is_simulation: bool):
     Thread(target=updater_thread_worker, daemon=True).start()
     logger.info("Started background updater thread.")
 
-    # Run the main async Telegram client loop
-    app.run(main_telegram_loop())
+    # Run the main Telegram client loop
+    try:
+        main_telegram_loop()
+    except KeyboardInterrupt:
+        logger.info("Received keyboard interrupt. Shutting down gracefully.")
