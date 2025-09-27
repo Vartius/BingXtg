@@ -99,26 +99,35 @@ def ai_parse_message_for_signal(text: str) -> Optional[dict]:
             logger.debug("AI service not available for parsing")
             return None
 
-        # Extract signal fields using AI
-        result = ai_service.extract_signal_fields(text)
+        # Parse the message using the AI service
+        result = ai_service.parse_signal(text)
+
+        if not result:
+            logger.debug("AI parsing returned no result")
+            return None
+
+        # Ensure a standard confidence field exists for downstream checks
+        signal_confidence = result.get("signal_confidence", 0.0)
+        result.setdefault("confidence", signal_confidence)
 
         # Only return result if it's detected as a signal with sufficient confidence
-        if result.get("is_signal", False) and result.get("confidence", 0.0) >= 0.5:
-            # Convert direction from numeric to string for consistency
+        if result.get("is_signal", False) and signal_confidence >= 0.5:
             direction_value = result.get("direction")
-            if direction_value is not None:
-                direction_map = {0: "long", 1: "short"}
-                result["direction"] = direction_map.get(
-                    direction_value, direction_value
-                )
+
+            # Normalize direction to string format
+            if isinstance(direction_value, (int, float)):
+                result["direction"] = "long" if int(direction_value) == 0 else "short"
+            elif isinstance(direction_value, str):
+                result["direction"] = direction_value.lower()
 
             logger.info(f"AI detected signal: {result}")
             return result
-        else:
-            logger.debug(
-                f"AI did not detect signal or confidence too low: {result.get('confidence', 0.0)}"
-            )
-            return None
+
+        logger.debug(
+            "AI did not detect signal or confidence too low: {confidence}",
+            confidence=signal_confidence,
+        )
+        return None
 
     except Exception as e:
         logger.error(f"Error in AI parsing: {e}")
