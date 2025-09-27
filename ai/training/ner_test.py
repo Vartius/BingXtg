@@ -15,7 +15,7 @@ test_text = """LONG #ETHUSDT from [$1 080](https://www.binance.com/ru/trade/ETHU
 Автор: [Market Situations](https://t.me/marketsituation)
 
 #ПробойУровня"""
-test_text_normalized = normalize_text(test_text)
+test_text_normalized = normalize_text(test_text, collapse_digit_spaces=True)
 
 print(f"Original test text: {test_text}")
 print(f"Normalized test text: {test_text_normalized}")
