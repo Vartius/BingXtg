@@ -5,10 +5,12 @@ This service provides AI-powered signal detection and information extraction
 using trained spaCy models for classification and Named Entity Recognition.
 """
 
-import spacy
-from typing import Optional, Dict, Any, List, Tuple
-from loguru import logger
+import re
 from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
+
+import spacy
+from loguru import logger
 
 
 class AIInferenceService:
@@ -30,9 +32,9 @@ class AIInferenceService:
 
         # Define model paths relative to project root
         self.project_root = Path(__file__).parent.parent
-        self.is_signal_model_path = self.project_root / "is_signal_model"
-        self.direction_model_path = self.project_root / "direction_model"
-        self.ner_model_path = self.project_root / "ner_model"
+        self.is_signal_model_path = self.project_root / "models/is_signal_model"
+        self.direction_model_path = self.project_root / "models/direction_model"
+        self.ner_model_path = self.project_root / "models/ner_model"
 
     def normalize_text(self, text: str) -> str:
         """
@@ -244,6 +246,22 @@ class AIInferenceService:
             logger.error(f"Error in entity extraction: {e}")
             return []
 
+    @staticmethod
+    def _extract_numeric_value(raw_text: str) -> Optional[float]:
+        """Extract the first floating-point number from the provided text."""
+        if not raw_text:
+            return None
+
+        cleaned = raw_text.replace(",", ".")
+        match = re.search(r"-?\d+(?:\.\d+)?", cleaned)
+        if not match:
+            return None
+
+        try:
+            return float(match.group(0))
+        except ValueError:
+            return None
+
     def parse_signal(self, message: str) -> Optional[Dict[str, Any]]:
         """
         Complete signal parsing pipeline.
@@ -272,9 +290,31 @@ class AIInferenceService:
         entities = self.extract_entities(message)
 
         # Organize entities by type
-        coins = [e for e in entities if e["label"] in ["COIN", "SYMBOL"]]
-        targets = [e for e in entities if e["label"] in ["TARGET", "TP"]]
-        stop_losses = [e for e in entities if e["label"] in ["SL", "STOP_LOSS"]]
+        pairs = [e for e in entities if e["label"] in {"PAIR", "COIN", "SYMBOL"}]
+        entries = [e for e in entities if e["label"] in {"ENTRY", "ENTRY_PRICE"}]
+        targets = [e for e in entities if e["label"] in {"TARGET", "TP"}]
+        stop_losses = [
+            e for e in entities if e["label"] in {"SL", "STOP_LOSS", "STOPLOSS"}
+        ]
+        leverages = [e for e in entities if e["label"] == "LEVERAGE"]
+
+        primary_pair = pairs[0]["text"].strip() if pairs else None
+        primary_entry = (
+            self._extract_numeric_value(entries[0]["text"]) if entries else None
+        )
+        primary_stop = (
+            self._extract_numeric_value(stop_losses[0]["text"]) if stop_losses else None
+        )
+        leverage_value = (
+            self._extract_numeric_value(leverages[0]["text"]) if leverages else None
+        )
+        target_values = [
+            value
+            for value in (
+                self._extract_numeric_value(target["text"]) for target in targets
+            )
+            if value is not None
+        ]
 
         result = {
             "is_signal": True,
@@ -282,16 +322,25 @@ class AIInferenceService:
             "direction": direction,
             "direction_confidence": direction_confidence,
             "entities": {
-                "coins": coins,
+                "coins": pairs,
+                "pairs": pairs,
+                "entries": entries,
                 "targets": targets,
                 "stop_losses": stop_losses,
+                "leverages": leverages,
                 "all": entities,
             },
+            "pair": primary_pair,
+            "entry": primary_entry,
+            "stop_loss": primary_stop,
+            "leverage": leverage_value,
+            "targets": target_values,
+            "targets_numeric": target_values,
             "normalized_text": self.normalize_text(message),
         }
 
         logger.info(
-            f"Signal parsed: {direction} signal with {len(coins)} coins and {len(targets)} targets"
+            f"Signal parsed: {direction} signal with {len(pairs)} pair candidates and {len(targets)} targets"
         )
         return result
 

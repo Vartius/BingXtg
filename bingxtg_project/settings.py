@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     # Project apps
     "apps.trading_bot",  # Main trading bot functionality
     "apps.telegram_client",  # Telegram integration
+    "apps.labeling",  # Web-based labeling workflow
 ]
 
 MIDDLEWARE = [
@@ -83,6 +84,9 @@ DATABASES = {
         "NAME": DB_PATH,
     }
 }
+
+# Dedicated path for labeling interface (falls back to primary database)
+LABELING_DB_PATH = os.environ.get("LABELING_DB_PATH", str(DB_PATH))
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [

@@ -470,8 +470,8 @@ def classify_signal_and_direction(
     # Load models if not provided
     if nlp_is_signal is None or nlp_direction is None:
         try:
-            nlp_is_signal = spacy.load("is_signal_model")
-            nlp_direction = spacy.load("direction_model")
+            nlp_is_signal = spacy.load("ai/models/is_signal_model")
+            nlp_direction = spacy.load("ai/models/direction_model")
         except OSError as e:
             raise RuntimeError(
                 f"Could not load models: {e}. Please run classification_train.py first."

@@ -23,7 +23,7 @@ class DatabaseManager:
     operations for messages and labels.
     """
 
-    def __init__(self, db_path: os.PathLike[str] | str = "messages.db"):
+    def __init__(self, db_path: os.PathLike[str] | str = "total.db"):
         """
         Initialize the database manager.
 
@@ -303,6 +303,11 @@ class DatabaseManager:
         """
         return self._execute_query(query, (limit,), "all")
 
+    def get_message_by_id(self, message_id: int) -> Optional[sqlite3.Row]:
+        """Retrieve a single message by its identifier."""
+        query = "SELECT * FROM messages WHERE id = ?"
+        return self._execute_query(query, (message_id,), "one")
+
     def get_random_unlabeled_message_from_channel(
         self, channel_id: int
     ) -> Optional[sqlite3.Row]:
@@ -326,6 +331,11 @@ class DatabaseManager:
         return self._execute_query(query, (channel_id,), "one")
 
     # ==================== LABEL OPERATIONS ====================
+
+    def get_label_by_message_id(self, message_id: int) -> Optional[sqlite3.Row]:
+        """Retrieve a labeled row corresponding to a message identifier."""
+        query = "SELECT * FROM labeled WHERE message_id = ?"
+        return self._execute_query(query, (message_id,), "one")
 
     def save_label(
         self,

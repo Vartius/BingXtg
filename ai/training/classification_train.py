@@ -8,7 +8,7 @@ import os
 # Add the project root to Python path so we can import modules
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from ai_training.utils import (
+from ai.training.utils import (
     load_classification_data,
     evaluate_textcat_model,
     initialize_textcat_model,
