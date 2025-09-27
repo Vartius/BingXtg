@@ -4,6 +4,7 @@ Common utilities for AI training modules.
 Contains shared functions for text normalization, data loading, model evaluation, etc.
 """
 
+import re
 import sqlite3
 import spacy
 from spacy.training.iob_utils import offsets_to_biluo_tags
@@ -11,13 +12,15 @@ from sklearn.model_selection import train_test_split
 from typing import List, Tuple, Dict, Any
 
 
-def normalize_text(text: str) -> str:
+def normalize_text(text: str, *, collapse_digit_spaces: bool = False) -> str:
     """
     Normalize text by replacing common Cyrillic lookalikes with Latin equivalents.
     This is the comprehensive version that handles both classification and NER cases.
 
     Args:
         text: Input text to normalize
+        collapse_digit_spaces: Whether to strip spaces between digits so
+            thousand-separated numbers collapse into a single token.
 
     Returns:
         Normalized text with Cyrillic characters replaced and commas converted to dots
@@ -64,7 +67,30 @@ def normalize_text(text: str) -> str:
 
     # Replace comma with dot (for decimal numbers)
     normalized = normalized.replace(",", ".")
+
+    if collapse_digit_spaces:
+        normalized = re.sub(r"(?<=\d)[ \u00a0\u202f]+(?=\d)", "", normalized)
+
     return normalized
+
+
+def relabel_numeric_entities(
+    text: str, entities: List[Dict[str, Any]]
+) -> List[Dict[str, Any]]:
+    """Ensure numeric entity labels remain consistent during inference.
+
+    This helper currently acts as a passthrough but allows downstream callers to
+    share a common interface between training and inference phases.
+
+    Args:
+        text: The normalized message text (unused but kept for future logic).
+        entities: List of entity dictionaries produced by the NER model.
+
+    Returns:
+        The list of entities, potentially transformed in future revisions.
+    """
+
+    return entities
 
 
 def load_database_connection(db_path: str = "total.db") -> sqlite3.Connection:
