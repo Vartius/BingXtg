@@ -185,6 +185,13 @@ class AutoLabelingService:
         try:
             return float(value)
         except (TypeError, ValueError):
+            if isinstance(value, str):
+                cleaned = value.strip()
+                if not cleaned:
+                    return None
+                candidate = AIInferenceService._extract_numeric_value(cleaned)
+                if candidate is not None:
+                    return candidate
             return None
 
     @staticmethod
