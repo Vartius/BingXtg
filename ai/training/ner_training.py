@@ -5,32 +5,13 @@ from spacy.training.example import Example
 from spacy.util import minibatch
 from sklearn.model_selection import train_test_split
 import random
-import sys
-import os
 
-# Add the project root to Python path so we can import modules
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-import sys
-from pathlib import Path
-
-try:
-    from ai.training.utils import (
-        normalize_text,
-        load_ner_training_data,
-        initialize_ner_model,
-        print_training_sample,
-    )
-except ModuleNotFoundError:
-    PROJECT_ROOT = Path(__file__).resolve().parents[2]
-    if str(PROJECT_ROOT) not in sys.path:
-        sys.path.insert(0, str(PROJECT_ROOT))
-    from ai.training.utils import (
-        normalize_text,
-        load_ner_training_data,
-        initialize_ner_model,
-        print_training_sample,
-    )
+from ai.training.utils import (
+    normalize_text,
+    load_ner_training_data,
+    initialize_ner_model,
+    print_training_sample,
+)
 
 
 def train_custom_ner(train_data, dev_data, output_dir="./ner_model", n_iter=20):

@@ -14,15 +14,12 @@ Point System:
 8) leverage: 1p
 """
 
-import sys
-import os
 import spacy
 import json
 from typing import Dict, List, Tuple, Any, Optional
 from loguru import logger
 
 # Add the project root to Python path
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from ai.training.utils import (
     normalize_text,

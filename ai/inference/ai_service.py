@@ -5,12 +5,21 @@ This service provides AI-powered signal detection and information extraction
 using trained spaCy models for classification and Named Entity Recognition.
 """
 
+import os
 import re
-from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import spacy
+from dotenv import load_dotenv
 from loguru import logger
+
+from ai.training.utils import normalize_text as training_normalize_text
+from ai.training.utils import relabel_numeric_entities
+
+load_dotenv()  # Load environment variables from .env file
+NER_MODEL_PATH = os.getenv("NER_MODEL_PATH", "ai/models/ner_model")
+IS_SIGNAL_MODEL_PATH = os.getenv("IS_SIGNAL_MODEL_PATH", "ai/models/is_signal_model")
+DIRECTION_MODEL_PATH = os.getenv("DIRECTION_MODEL_PATH", "ai/models/direction_model")
 
 
 class AIInferenceService:
@@ -30,12 +39,6 @@ class AIInferenceService:
         self.nlp_ner = None
         self._models_loaded = False
 
-        # Define model paths relative to project root
-        self.project_root = Path(__file__).parent.parent
-        self.is_signal_model_path = self.project_root / "models/is_signal_model"
-        self.direction_model_path = self.project_root / "models/direction_model"
-        self.ner_model_path = self.project_root / "models/ner_model"
-
     def normalize_text(self, text: str) -> str:
         """
         Normalize text by replacing common Cyrillic lookalikes with Latin equivalents.
@@ -46,45 +49,7 @@ class AIInferenceService:
         Returns:
             Normalized text with Cyrillic characters replaced
         """
-        if text is None:
-            return None
-
-        # Cyrillic to Latin mapping for common lookalike characters
-        cyrillic_to_latin = {
-            # Uppercase letters
-            "А": "A",
-            "В": "B",
-            "Е": "E",
-            "К": "K",
-            "М": "M",
-            "Н": "H",
-            "О": "O",
-            "Р": "P",
-            "С": "C",
-            "Т": "T",
-            "Х": "X",
-            # Lowercase letters
-            "а": "a",
-            "в": "b",
-            "е": "e",
-            "к": "k",
-            "м": "m",
-            "н": "h",
-            "о": "o",
-            "р": "p",
-            "с": "c",
-            "т": "t",
-            "х": "x",
-        }
-
-        # Replace Cyrillic characters
-        for cyrillic, latin in cyrillic_to_latin.items():
-            text = text.replace(cyrillic, latin)
-
-        # Replace comma with dot for decimal numbers
-        text = text.replace(",", ".")
-
-        return text
+        return training_normalize_text(text)
 
     def load_models(self) -> bool:
         """
@@ -95,31 +60,15 @@ class AIInferenceService:
         """
         try:
             # Load signal detection model
-            if self.is_signal_model_path.exists():
-                self.nlp_is_signal = spacy.load(str(self.is_signal_model_path))
-                logger.info("Signal detection model loaded successfully")
-            else:
-                logger.warning(f"Signal model not found at {self.is_signal_model_path}")
-                return False
+            self.nlp_is_signal = spacy.load(IS_SIGNAL_MODEL_PATH)
+            logger.info("Signal detection model loaded successfully")
 
             # Load direction classification model
-            if self.direction_model_path.exists():
-                self.nlp_direction = spacy.load(str(self.direction_model_path))
-                logger.info("Direction classification model loaded successfully")
-            else:
-                logger.warning(
-                    f"Direction model not found at {self.direction_model_path}"
-                )
-                return False
+            self.nlp_direction = spacy.load(str(DIRECTION_MODEL_PATH))
+            logger.info("Direction classification model loaded successfully")
 
-            # Load NER model (optional - may not always be available)
-            if self.ner_model_path.exists():
-                try:
-                    self.nlp_ner = spacy.load(str(self.ner_model_path))
-                    logger.info("NER model loaded successfully")
-                except OSError as e:
-                    logger.warning(f"NER model failed to load: {e}")
-                    # NER is optional, continue without it
+            self.nlp_ner = spacy.load(str(NER_MODEL_PATH))
+            logger.info("NER model loaded successfully")
 
             self._models_loaded = True
             return True
@@ -225,19 +174,18 @@ class AIInferenceService:
             normalized_text = self.normalize_text(message)
             doc = self.nlp_ner(normalized_text)
 
-            entities = []
-            for ent in doc.ents:
-                entities.append(
-                    {
-                        "text": ent.text,
-                        "label": ent.label_,
-                        "start": ent.start_char,
-                        "end": ent.end_char,
-                        "confidence": getattr(
-                            ent, "score", 1.0
-                        ),  # spaCy doesn't always provide scores
-                    }
-                )
+            raw_entities = [
+                {
+                    "text": ent.text,
+                    "label": ent.label_,
+                    "start": ent.start_char,
+                    "end": ent.end_char,
+                    "confidence": getattr(ent, "score", 1.0),
+                }
+                for ent in doc.ents
+            ]
+
+            entities = relabel_numeric_entities(normalized_text, raw_entities)
 
             logger.debug(f"Extracted {len(entities)} entities")
             return entities
@@ -253,6 +201,8 @@ class AIInferenceService:
             return None
 
         cleaned = raw_text.replace(",", ".")
+        cleaned = cleaned.replace("\u00a0", " ").replace("\u202f", " ")
+        cleaned = re.sub(r"(?<=\d)\s+(?=\d)", "", cleaned)
         match = re.search(r"-?\d+(?:\.\d+)?", cleaned)
         if not match:
             return None

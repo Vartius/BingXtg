@@ -32,9 +32,7 @@ def resolve_labeling_database_path() -> str:
 
     fallback_candidates = [
         base_dir / "total.db",
-        base_dir / "core" / "total.db",
         default_name,
-        base_dir / "messages.db",
     ]
 
     for candidate in fallback_candidates:

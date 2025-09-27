@@ -1,12 +1,5 @@
-#!/usr/bin/env python3
-
 from spacy.training.example import Example
 import random
-import sys
-import os
-
-# Add the project root to Python path so we can import modules
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from ai.training.utils import (
     load_classification_data,

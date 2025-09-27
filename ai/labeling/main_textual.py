@@ -23,9 +23,6 @@ from textual import on
 
 # --- CONFIGURATION (Identical to original script) ---
 
-# File to save newly labeled data
-NEW_LABELED_FILE = "new_labeled.txt"
-
 # Batch processing configuration
 BATCH_SIZE = 10
 MAX_RETRIES = 5
@@ -155,24 +152,6 @@ def exponential_backoff_delay(attempt: int, base_delay: float = BASE_DELAY) -> f
     return delay + jitter
 
 
-def save_new_labeled_data(message_id, message_text, data, filename=NEW_LABELED_FILE):
-    """Save newly labeled data to a text file for review."""
-    try:
-        with open(filename, "a", encoding="utf-8") as f:
-            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            f.write(f"\n{'=' * 80}\n")
-            f.write(f"Timestamp: {timestamp}\n")
-            f.write(f"Message ID: {message_id}\n")
-            f.write(f"Original Messagnere: {message_text}\n")
-            f.write(f"Extracted Data: {json.dumps(data, indent=2)}\n")
-            f.write(f"{'=' * 80}\n")
-        # Log to file only, dialog shows this differently
-        logger.info(f"Saved labeled data for message ID {message_id} to {filename}")
-    except Exception as e:
-        dialog_message(f"Failed to save labeled data to file: {e}", "error")
-        logger.error(f"Failed to save labeled data to file: {e}")
-
-
 def setup_database(db_file):
     """Initializes the database connection and ensures proper constraints on the 'labeled' table."""
     logger.info("🗄️  Setting up database connection...")
@@ -294,9 +273,6 @@ def save_to_database(conn, cursor, message_id, channel_id, message_text, data):
             return True  # Consider it successful since it's already processed
 
         is_signal = data.get("is_signal", False)
-
-        # Save the newly labeled data to file
-        save_new_labeled_data(message_id, message_text, data)
 
         # We even save non-signals to avoid re-processing them in the future
         if is_signal:
