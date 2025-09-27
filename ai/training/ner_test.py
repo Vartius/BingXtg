@@ -1,5 +1,5 @@
 import spacy
-from utils import normalize_text, relabel_numeric_entities
+from utils import normalize_text
 
 
 print("\n=== Testing Trained Model ===")
@@ -23,24 +23,9 @@ print(f"Normalized test text: {test_text_normalized}")
 nlp_loaded = spacy.load("ai/models/ner_model")
 doc_loaded = nlp_loaded(test_text_normalized)
 
-raw_entities = [
-    {
-        "text": ent.text,
-        "label": ent.label_,
-        "start": ent.start_char,
-        "end": ent.end_char,
-    }
-    for ent in doc_loaded.ents
-]
+print("Entities found by loaded model:")
+for ent in doc_loaded.ents:
+    print(f"  '{ent.text}' ({ent.label_}) at {ent.start_char}-{ent.end_char}")
 
-entities = relabel_numeric_entities(test_text_normalized, raw_entities)
-
-if entities:
-    print("Entities found by loaded model (post-processed):")
-    for ent, original in zip(entities, doc_loaded.ents):
-        label_display = ent["label"]
-        if original.label_ != ent["label"]:
-            label_display = f"{label_display} (was {original.label_})"
-        print(f"  '{ent['text']}' ({label_display}) at {ent['start']}-{ent['end']}")
-else:
+if not doc_loaded.ents:
     print("  No entities found by loaded model")
