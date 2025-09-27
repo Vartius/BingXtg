@@ -1,5 +1,5 @@
 import spacy
-from ai.training.utils import classify_signal_and_direction
+from utils import classify_signal_and_direction
 
 
 if __name__ == "__main__":

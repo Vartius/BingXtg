@@ -49,7 +49,7 @@ class AIInferenceService:
         Returns:
             Normalized text with Cyrillic characters replaced
         """
-        return training_normalize_text(text)
+        return training_normalize_text(text, collapse_digit_spaces=True)
 
     def load_models(self) -> bool:
         """
