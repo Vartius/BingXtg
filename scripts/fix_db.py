@@ -65,7 +65,10 @@ for row in all_rows:
     message: str = row[3].lower()
     is_signal: int = int(row[4])
     labeled_at: str = row[5]
-    direction: str | None = row[6].lower() if row[6] is not None else None
+    if type(row[6]) is int:
+        direction = "LMAO CHANGE THIS SHIT"
+    else:
+        direction: str | None = row[6].lower() if row[6] is not None else None
     pair: str | None = row[7].lower() if row[7] is not None else None
     stop_loss: float | None = row[8]
     leverage: float | None = row[10]
