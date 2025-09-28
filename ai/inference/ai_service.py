@@ -7,6 +7,7 @@ using trained spaCy models for classification and Named Entity Recognition.
 
 import os
 import re
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import spacy
@@ -16,10 +17,19 @@ from loguru import logger
 from ai.training.utils import normalize_text as training_normalize_text
 from ai.training.utils import relabel_numeric_entities
 
+try:
+    from transformers import pipeline
+except ImportError:  # pragma: no cover - optional dependency handled at runtime
+    pipeline = None  # type: ignore
+
 load_dotenv()  # Load environment variables from .env file
 NER_MODEL_PATH = os.getenv("NER_MODEL_PATH", "ai/models/ner_model")
 IS_SIGNAL_MODEL_PATH = os.getenv("IS_SIGNAL_MODEL_PATH", "ai/models/is_signal_model")
 DIRECTION_MODEL_PATH = os.getenv("DIRECTION_MODEL_PATH", "ai/models/direction_model")
+HF_CLASSIFIER_PATH = Path(
+    os.getenv("HF_CLASSIFIER_MODEL_PATH", "ai/models/signal_classifier")
+)
+HF_NER_PATH = Path(os.getenv("HF_NER_MODEL_PATH", "ai/models/ner_extractor"))
 
 
 class AIInferenceService:
@@ -37,6 +47,8 @@ class AIInferenceService:
         self.nlp_is_signal = None
         self.nlp_direction = None
         self.nlp_ner = None
+        self.hf_classifier = None
+        self.hf_ner = None
         self._models_loaded = False
 
     def normalize_text(self, text: str) -> str:
@@ -51,6 +63,78 @@ class AIInferenceService:
         """
         return training_normalize_text(text, collapse_digit_spaces=True)
 
+    def _try_load_hf_classifier(self) -> bool:
+        if pipeline is None:
+            logger.debug("transformers pipeline not available; skipping HF classifier")
+            return False
+        if not HF_CLASSIFIER_PATH.exists():
+            logger.debug("HF classifier path %s does not exist", HF_CLASSIFIER_PATH)
+            return False
+
+        try:
+            self.hf_classifier = pipeline(
+                "text-classification",
+                model=str(HF_CLASSIFIER_PATH),
+                tokenizer=str(HF_CLASSIFIER_PATH),
+                top_k=None,
+            )
+            logger.info("Hugging Face classifier loaded from %s", HF_CLASSIFIER_PATH)
+            return True
+        except Exception as exc:  # pragma: no cover - runtime safety
+            logger.error(f"Failed to load Hugging Face classifier: {exc}")
+            self.hf_classifier = None
+            return False
+
+    def _try_load_hf_ner(self) -> bool:
+        if pipeline is None:
+            return False
+        if not HF_NER_PATH.exists():
+            return False
+
+        try:
+            self.hf_ner = pipeline(
+                "token-classification",
+                model=str(HF_NER_PATH),
+                tokenizer=str(HF_NER_PATH),
+                aggregation_strategy="simple",
+            )
+            logger.info("Hugging Face NER loaded from %s", HF_NER_PATH)
+            return True
+        except Exception as exc:  # pragma: no cover - runtime safety
+            logger.error(f"Failed to load Hugging Face NER pipeline: {exc}")
+            self.hf_ner = None
+            return False
+
+    def _try_load_spacy_signal(self) -> bool:
+        try:
+            self.nlp_is_signal = spacy.load(str(IS_SIGNAL_MODEL_PATH))
+            logger.info("spaCy signal model loaded successfully")
+            return True
+        except OSError as exc:
+            logger.warning(f"spaCy signal model unavailable: {exc}")
+            self.nlp_is_signal = None
+            return False
+
+    def _try_load_spacy_direction(self) -> bool:
+        try:
+            self.nlp_direction = spacy.load(str(DIRECTION_MODEL_PATH))
+            logger.info("spaCy direction model loaded successfully")
+            return True
+        except OSError as exc:
+            logger.warning(f"spaCy direction model unavailable: {exc}")
+            self.nlp_direction = None
+            return False
+
+    def _try_load_spacy_ner(self) -> bool:
+        try:
+            self.nlp_ner = spacy.load(str(NER_MODEL_PATH))
+            logger.info("spaCy NER model loaded successfully")
+            return True
+        except OSError as exc:
+            logger.warning(f"spaCy NER model unavailable: {exc}")
+            self.nlp_ner = None
+            return False
+
     def load_models(self) -> bool:
         """
         Load all trained AI models.
@@ -58,25 +142,50 @@ class AIInferenceService:
         Returns:
             True if all models loaded successfully, False otherwise
         """
-        try:
-            # Load signal detection model
-            self.nlp_is_signal = spacy.load(IS_SIGNAL_MODEL_PATH)
-            logger.info("Signal detection model loaded successfully")
+        classifier_loaded = self._try_load_hf_classifier()
+        ner_loaded = self._try_load_hf_ner()
 
-            # Load direction classification model
-            self.nlp_direction = spacy.load(str(DIRECTION_MODEL_PATH))
-            logger.info("Direction classification model loaded successfully")
+        direction_loaded = classifier_loaded  # HF classifier carries direction labels
 
-            self.nlp_ner = spacy.load(str(NER_MODEL_PATH))
-            logger.info("NER model loaded successfully")
+        if not classifier_loaded:
+            classifier_loaded = self._try_load_spacy_signal()
+            direction_loaded = (
+                self._try_load_spacy_direction() if classifier_loaded else False
+            )
 
-            self._models_loaded = True
-            return True
+        if not ner_loaded:
+            ner_loaded = self._try_load_spacy_ner()
 
-        except OSError as e:
-            logger.error(f"Error loading models: {e}")
-            logger.error("Please ensure all models are trained and available")
-            return False
+        self._models_loaded = classifier_loaded and direction_loaded
+
+        if not classifier_loaded:
+            logger.error("No classification model could be loaded; AI service disabled")
+        if not ner_loaded:
+            logger.warning("NER model not available; entity extraction will be empty")
+
+        return self._models_loaded
+
+    def _hf_classify(self, normalized_text: str) -> Dict[str, Any]:
+        if self.hf_classifier is None:
+            raise RuntimeError("Hugging Face classifier not loaded")
+
+        results = self.hf_classifier(normalized_text, return_all_scores=True)[0]
+        best = max(
+            results,
+            key=lambda item: float(item["score"]),  # type: ignore[index]
+        )
+        label = str(best["label"])  # type: ignore[index]
+        score = float(best["score"])  # type: ignore[index]
+        return {"label": label, "score": score, "all_scores": results}
+
+    @staticmethod
+    def _direction_from_label(label: str) -> str:
+        mapping = {
+            "SIGNAL_LONG": "LONG",
+            "SIGNAL_SHORT": "SHORT",
+            "SIGNAL_NONE": "NONE",
+        }
+        return mapping.get(label, "NONE")
 
     def is_available(self) -> bool:
         """
@@ -85,11 +194,11 @@ class AIInferenceService:
         Returns:
             True if models are loaded and service is ready
         """
-        return (
-            self._models_loaded
-            and self.nlp_is_signal is not None
-            and self.nlp_direction is not None
-        )
+        if not self._models_loaded:
+            return False
+        if self.hf_classifier is not None:
+            return True
+        return self.nlp_is_signal is not None and self.nlp_direction is not None
 
     def is_signal(self, message: str) -> Tuple[bool, float]:
         """
@@ -101,14 +210,28 @@ class AIInferenceService:
         Returns:
             Tuple of (is_signal: bool, confidence: float)
         """
-        if not self.is_available() or self.nlp_is_signal is None:
+        if not self.is_available():
             logger.warning("AI service not available for signal detection")
             return False, 0.0
 
         try:
             normalized_text = self.normalize_text(message)
-            doc = self.nlp_is_signal(normalized_text)
+            if self.hf_classifier is not None:
+                result = self._hf_classify(normalized_text)
+                is_signal = result["label"] != "NON_SIGNAL"
+                logger.debug(
+                    "HF signal detection: %s (label=%s, confidence=%.3f)",
+                    is_signal,
+                    result["label"],
+                    result["score"],
+                )
+                return is_signal, float(result["score"])
 
+            if self.nlp_is_signal is None:
+                logger.warning("spaCy signal model not loaded")
+                return False, 0.0
+
+            doc = self.nlp_is_signal(normalized_text)
             signal_prob = doc.cats.get("signal", 0.0)
             is_signal = signal_prob > 0.5
 
@@ -131,12 +254,28 @@ class AIInferenceService:
         Returns:
             Tuple of (direction: str, confidence: float)
         """
-        if not self.is_available() or self.nlp_direction is None:
+        if not self.is_available():
             logger.warning("AI service not available for direction classification")
             return "NONE", 0.0
 
         try:
             normalized_text = self.normalize_text(message)
+            if self.hf_classifier is not None:
+                result = self._hf_classify(normalized_text)
+                direction = self._direction_from_label(result["label"])
+                confidence = float(result["score"])
+
+                logger.debug(
+                    "HF direction classification: %s (confidence: %.3f)",
+                    direction,
+                    confidence,
+                )
+                return direction, confidence
+
+            if self.nlp_direction is None:
+                logger.warning("spaCy direction model not loaded")
+                return "NONE", 0.0
+
             doc = self.nlp_direction(normalized_text)
 
             # Find direction with highest confidence
@@ -166,24 +305,40 @@ class AIInferenceService:
         Returns:
             List of extracted entities with labels and positions
         """
-        if self.nlp_ner is None:
+        if self.hf_ner is None and self.nlp_ner is None:
             logger.debug("NER model not available")
             return []
 
         try:
             normalized_text = self.normalize_text(message)
-            doc = self.nlp_ner(normalized_text)
+            if self.hf_ner is not None:
+                hf_entities = self.hf_ner(normalized_text)
+                raw_entities = [
+                    {
+                        "text": ent["word"],
+                        "label": ent["entity_group"],
+                        "start": ent["start"],
+                        "end": ent["end"],
+                        "confidence": float(ent["score"]),
+                    }
+                    for ent in hf_entities
+                ]
+            else:
+                if self.nlp_ner is None:
+                    logger.debug("spaCy NER model not loaded")
+                    return []
 
-            raw_entities = [
-                {
-                    "text": ent.text,
-                    "label": ent.label_,
-                    "start": ent.start_char,
-                    "end": ent.end_char,
-                    "confidence": getattr(ent, "score", 1.0),
-                }
-                for ent in doc.ents
-            ]
+                doc = self.nlp_ner(normalized_text)
+                raw_entities = [
+                    {
+                        "text": ent.text,
+                        "label": ent.label_,
+                        "start": ent.start_char,
+                        "end": ent.end_char,
+                        "confidence": getattr(ent, "score", 1.0),
+                    }
+                    for ent in doc.ents
+                ]
 
             entities = relabel_numeric_entities(normalized_text, raw_entities)
 
@@ -226,15 +381,36 @@ class AIInferenceService:
             logger.warning("AI service not available for signal parsing")
             return None
 
-        # Step 1: Check if message is a signal
-        is_signal, signal_confidence = self.is_signal(message)
+        normalized_text = self.normalize_text(message)
 
-        if not is_signal:
-            logger.debug("Message classified as non-signal")
-            return None
+        if self.hf_classifier is not None:
+            classification = self._hf_classify(normalized_text)
+            if classification["label"] == "NON_SIGNAL":
+                logger.debug("Message classified as non-signal (HF classifier)")
+                return None
 
-        # Step 2: Extract direction
-        direction, direction_confidence = self.get_direction(message)
+            signal_confidence = float(classification["score"])
+            direction = self._direction_from_label(classification["label"])
+            direction_confidence = signal_confidence
+        else:
+            # Step 1: Check if message is a signal using spaCy models
+            is_signal, signal_confidence = self.is_signal(message)
+
+            if not is_signal:
+                logger.debug("Message classified as non-signal")
+                return None
+
+            # Step 2: Extract direction via spaCy model
+            direction, direction_confidence = self.get_direction(message)
+            classification = {
+                "label": "SIGNAL_LONG"
+                if direction == "LONG"
+                else "SIGNAL_SHORT"
+                if direction == "SHORT"
+                else "SIGNAL_NONE",
+                "score": signal_confidence,
+                "all_scores": [],
+            }
 
         # Step 3: Extract entities (coins, targets, etc.)
         entities = self.extract_entities(message)
@@ -286,7 +462,8 @@ class AIInferenceService:
             "leverage": leverage_value,
             "targets": target_values,
             "targets_numeric": target_values,
-            "normalized_text": self.normalize_text(message),
+            "normalized_text": normalized_text,
+            "classification": classification,
         }
 
         logger.info(
