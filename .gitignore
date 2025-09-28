@@ -31,3 +31,6 @@ staticfiles/
 *-wal
 PR_DESCRIPTION.md
 ai/models/
+output/
+models/
+data_exports/
