@@ -29,6 +29,7 @@ dependencies = [
     "protobuf>=4.21.6,<6.0.0",
     "py-bingx>=0.4",
     "pyqt6>=6.9.1",
+    "pytest>=8.4.2",
     "python-dotenv>=1.1.1",
     "regex>=2025.7.34",
     "requests==2.31.0",
