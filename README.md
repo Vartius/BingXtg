@@ -107,13 +107,37 @@ Once configured, you can start the bot from your terminal.
 
 ## 🧠 AI Model Training
 
-All AI model training is now done exclusively in the `ai.ipynb` Jupyter notebook. The Django application uses the trained models for inference through `ai/inference/ai_service.py`.
+The project ships with a Hugging Face training toolkit under `ai/training/hf`. It exports labeled messages from `total.db`, fine-tunes `xlm-roberta-base` for both classification and NER, and places the resulting models in `ai/models/` for immediate use by `ai/inference/ai_service.py`.
 
-### Training Process:
-1. Open `ai.ipynb` in Jupyter Lab or VS Code
-2. Follow the notebook cells to train both classifier and NER models
-3. Models are automatically saved to the `ai/models/` directory
-4. The Django application will automatically use the trained models
+### 1. Export labeled data
+
+```bash
+uv run python ai/training/hf/export_data.py --db total.db --out data_exports
+```
+
+This creates `data_exports/classification_data.csv` and `data_exports/ner_data.jsonl`, mirroring the schemas expected by `datasets`.
+
+### 2. Fine-tune the 4-way classifier
+
+```bash
+uv run python ai/training/hf/train_classifier.py --data-file data_exports/classification_data.csv --output-dir ai/models/signal_classifier
+```
+
+### 3. Fine-tune the token-classification NER model
+
+```bash
+uv run python ai/training/hf/train_ner.py --data-file data_exports/ner_data.jsonl --output-dir ai/models/ner_extractor
+```
+
+Both scripts expose flags for epochs, batch size, and mixed precision if you need to iterate.
+
+### 4. Smoke-test inference locally
+
+```bash
+uv run python ai/inference/predict.py "BTC/USDT long 10x entry 60000 target 62000"
+```
+
+The Django runtime will automatically prefer the Hugging Face models when these folders exist, falling back to the legacy spaCy models otherwise.
 
 ## 🐳 Docker Usage
 
