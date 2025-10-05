@@ -5,7 +5,7 @@ This is a Django-based trading platform that automates trades on the BingX excha
 ## ✨ Features
 
 -   **Telegram Ingestion**: Asynchronous Telethon clients capture channel messages, normalize them, and persist them to SQLite with channel metadata.
--   **AI Signal Parsing**: spaCy classifiers and NER pipelines detect genuine trading signals, infer direction, and extract entries, targets, and stop losses.
+-   **AI Signal Parsing**: HuggingFace transformers and spaCy classifiers detect genuine trading signals, infer direction, and extract entries, targets, and stop losses. HuggingFace models take precedence when available.
 -   **Automated Trading**: The trading engine sizes positions using per-channel win rates and can execute orders on BingX or run in simulation.
 -   **Real-Time Dashboard**: A Django + Channels web UI (Catppuccin teal theme) streams live trades, balances, and performance metrics over WebSockets.
 -   **Labeling Studio**: Browser-based labeling workflow with AI suggestions and optional batch auto-labeling via management command.
@@ -48,7 +48,8 @@ Trading cryptocurrency involves significant risk. This bot is provided as-is, an
     -   Adjust the trading parameters like `LEVERAGE`, `TP` (Take Profit), and `SL` (Stop Loss) to fit your strategy.
 
 5.  **Configure Signal Channels**:
-    -   Edit `data/channels.json`.
+    -   The `data/` directory will be created automatically on first run.
+    -   Edit `data/channels.json` (created after first bot run) to configure which Telegram channels to parse.
     -   For each channel you want to parse, add an entry using its Telegram Chat ID as the key.
     -   Define the `regex` to capture the coin ticker (e.g., `(BTC)`), and the keywords that trigger a `long` or `short` trade.
     -   Set `"do": true` to enable parsing for that channel.
@@ -67,7 +68,7 @@ Trading cryptocurrency involves significant risk. This bot is provided as-is, an
     ```
 
 6.  **Prepare Data Files**:
-    -   The `data/` directory contains the bot's state and data. The required files (`state.json`, `winrate.json`, `table.json`) will be created automatically on the first run if they don't exist.
+    -   The `data/` directory and required files (`state.json`, `winrate.json`, `table.json`, `channels.json`) will be created automatically on the first run if they don't exist.
 
 ## ▶️ Running the Bot
 
@@ -137,7 +138,7 @@ Both scripts expose flags for epochs, batch size, and mixed precision if you nee
 uv run python ai/inference/predict.py "BTC/USDT long 10x entry 60000 target 62000"
 ```
 
-The Django runtime will automatically prefer the Hugging Face models when these folders exist, falling back to the legacy spaCy models otherwise.
+The Django runtime will automatically prefer the HuggingFace models when these folders exist, falling back to the legacy spaCy models otherwise.
 
 ## 🐳 Docker Usage
 
@@ -167,21 +168,24 @@ The high-level layout mirrors the reference in `PROJECT.MD`:
 
 ```
 BingXtg/
-├── ai/                # Inference utilities, labeling tools, trained spaCy models
+├── ai/                # Inference utilities, labeling tools, trained models
 ├── apps/
 │   ├── labeling/      # Browser-based labeling studio + auto-labeling services
 │   ├── telegram_client/  # Telegram ingestion clients
 │   └── trading_bot/   # Trading engine, text parsing, websocket consumers
 ├── bingxtg_project/   # Django project settings, ASGI/WSGI, URLs
 ├── core/              # Shared config, database manager, trading helpers
-├── data/              # Runtime JSON config/state for channels & dashboard
-├── docs/              # Additional documentation (placeholder)
+├── data/              # Runtime JSON config/state (created on first run)
+├── data_exports/      # Exported training datasets
+├── docs/              # Comprehensive documentation
 ├── logs/              # Rotated log files
 ├── static/            # CSS/JS assets (Catppuccin teal theme)
+├── staticfiles/       # Collected static files (after collectstatic)
 ├── templates/         # Django templates for dashboard + labeling UI
-├── tests/             # Test harnesses (app-level tests live alongside apps)
+├── bkp/               # Database backups
 ├── manage.py
 ├── pyproject.toml     # Project metadata and dependencies (managed by uv)
+├── total.db           # Main SQLite database (all data)
 └── uv.lock            # Resolved dependency lockfile
 ```
 
