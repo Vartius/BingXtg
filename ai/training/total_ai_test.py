@@ -330,7 +330,7 @@ class TotalAITester:
             message: Input message to analyze
 
         Returns:
-            Dictionary with all predictions
+            Dictionary with all predictions in HuggingFace-compatible format
         """
         predictions = {}
 
@@ -346,7 +346,7 @@ class TotalAITester:
             normalized_text = normalize_text(message)
             doc = self.nlp_ner(normalized_text)
 
-            # Extract entities
+            # Extract entities in HuggingFace-compatible format
             entities = {
                 "pair": None,
                 "stop_loss": None,
@@ -381,6 +381,7 @@ class TotalAITester:
                     if normalized_value is not None:
                         entities["targets"].append(str(normalized_value))
 
+            # Store entities in the same format as HuggingFace
             predictions["ner_entities"] = entities
 
         return predictions

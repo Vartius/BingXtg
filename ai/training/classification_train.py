@@ -19,7 +19,7 @@ def train_is_signal_model(
     train_data, dev_data, output_dir=IS_SIGNAL_MODEL_PATH, n_iter=20
 ):
     """
-    Обучает модель для классификации is_signal.
+    Trains the model for is_signal classification.
     """
     nlp = initialize_textcat_model("en", ["signal", "non_signal"])
     optimizer = nlp.begin_training()
@@ -29,16 +29,16 @@ def train_is_signal_model(
         losses = {}
         batches = [
             train_data[x : x + 32] for x in range(0, len(train_data), 32)
-        ]  # Батчи
+        ]  # Batches
         for batch in batches:
             examples = [
                 Example.from_dict(nlp.make_doc(text), ann) for text, ann in batch
             ]
             nlp.update(examples, sgd=optimizer, losses=losses)
 
-        print(f"Итерация {i + 1}, потери: {losses}")
+        print(f"Iteration {i + 1}, losses: {losses}")
 
-        # Валидация каждые 5
+        # Validation every 5 iterations
         if i % 5 == 0:
             score = evaluate_textcat_model(nlp, dev_data)
             if "cats" in score and "signal" in score["cats"]:
@@ -47,7 +47,7 @@ def train_is_signal_model(
                 print(f"Evaluation completed, score structure: {list(score.keys())}")
 
     nlp.to_disk(output_dir)
-    print(f"Модель is_signal сохранена в {output_dir}")
+    print(f"is_signal model saved to {output_dir}")
     return nlp
 
 
@@ -55,7 +55,7 @@ def train_direction_model(
     train_data, dev_data, output_dir=DIRECTION_MODEL_PATH, n_iter=20
 ):
     """
-    Обучает модель для классификации direction (только на is_signal=1).
+    Trains the model for direction classification (only on is_signal=1).
     """
     nlp = initialize_textcat_model("en", ["LONG", "SHORT", "NONE"])
     optimizer = nlp.begin_training()
@@ -70,7 +70,7 @@ def train_direction_model(
             ]
             nlp.update(examples, sgd=optimizer, losses=losses)
 
-        print(f"Итерация {i + 1}, потери: {losses}")
+        print(f"Iteration {i + 1}, losses: {losses}")
 
         if i % 5 == 0:
             score = evaluate_textcat_model(nlp, dev_data)
@@ -82,7 +82,7 @@ def train_direction_model(
                         accuracies.append(score["cats"][label].get("accuracy", 0.0))
                 if accuracies:
                     best_acc = max(accuracies)
-                    print(f"Лучшая accuracy direction: {best_acc:.3f}")
+                    print(f"Best direction accuracy: {best_acc:.3f}")
                 else:
                     print(
                         f"Evaluation completed, score structure: {list(score.keys())}"
@@ -91,7 +91,7 @@ def train_direction_model(
                 print(f"Evaluation completed, score structure: {list(score.keys())}")
 
     nlp.to_disk(output_dir)
-    print(f"Модель direction сохранена в {output_dir}")
+    print(f"direction model saved to {output_dir}")
     return nlp
 
 
@@ -103,11 +103,11 @@ if __name__ == "__main__":
 
     # Train is_signal model
     print("\n=== Training is_signal Model ===")
-    nlp_is = train_is_signal_model(is_train, is_dev)
+    nlp_is = train_is_signal_model(is_train, is_dev, n_iter=10)
 
     # Train direction model
     print("\n=== Training direction Model ===")
-    nlp_dir = train_direction_model(dir_train, dir_dev)
+    nlp_dir = train_direction_model(dir_train, dir_dev, n_iter=10)
 
     print("\n=== Training Complete ===")
     print("Models saved to:")

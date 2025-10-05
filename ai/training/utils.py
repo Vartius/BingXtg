@@ -491,7 +491,7 @@ def classify_signal_and_direction(
         nlp_direction: Trained direction model (will load if None)
 
     Returns:
-        Dictionary with classification results
+        Dictionary with classification results in HuggingFace-compatible format
     """
     # Load models if not provided
     if nlp_is_signal is None or nlp_direction is None:
@@ -521,9 +521,13 @@ def classify_signal_and_direction(
         direction = max(dir_cats.keys(), key=lambda k: dir_cats[k])  # Max confidence
         direction_prob = dir_cats[direction]
 
+    # Return in HuggingFace-compatible format
     return {
         "is_signal": is_signal,
-        "is_signal_prob": is_signal_prob,
         "direction": direction,
+        "confidence": is_signal_prob if is_signal == 1 else (1.0 - is_signal_prob),
+        "raw_prediction": f"SIGNAL_{direction}" if is_signal == 1 else "NON_SIGNAL",
+        # Legacy fields for backward compatibility
+        "is_signal_prob": is_signal_prob,
         "direction_prob": direction_prob,
     }
