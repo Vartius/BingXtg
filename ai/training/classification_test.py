@@ -1,11 +1,5 @@
 import spacy
-import sys
-import os
-
-# Add the project root to Python path so we can import modules
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from ai_training.utils import classify_signal_and_direction
+from utils import classify_signal_and_direction
 
 
 if __name__ == "__main__":
@@ -13,8 +7,8 @@ if __name__ == "__main__":
 
     # Load the trained models
     try:
-        nlp_is = spacy.load("is_signal_model")
-        nlp_dir = spacy.load("direction_model")
+        nlp_is = spacy.load("ai/models/is_signal_model")
+        nlp_dir = spacy.load("ai/models/direction_model")
         print("Models loaded successfully!")
     except OSError as e:
         print(f"Error loading models: {e}")
@@ -40,8 +34,8 @@ if __name__ == "__main__":
 
 # Load models globally if run as module
 try:
-    nlp_is = spacy.load("is_signal_model")
-    nlp_dir = spacy.load("direction_model")
+    nlp_is = spacy.load("ai/models/is_signal_model")
+    nlp_dir = spacy.load("ai/models/direction_model")
 except OSError:
     # Models not found, will be handled in main or when functions are called
     nlp_is = None

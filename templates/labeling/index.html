@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="grid-two">
+  <article class="card">
+    <header>
+      <h2>Message to Label</h2>
+      {% if message %}
+      <p class="muted">Message ID <span class="badge">#{{ message.id }}</span> • Channel {{ message.channel_id }}</p>
+      {% endif %}
+    </header>
+    {% if message %}
+    <div class="message">{{ message.message }}</div>
+    {% else %}
+    <p class="muted">Everything is labeled! No remaining unlabeled messages were found.</p>
+    {% endif %}
+  </article>
+
+  <article class="card">
+    <header>
+      <h2>AI Suggestions</h2>
+      <p class="muted">The built-in spaCy models provide lightweight hints to speed up labeling.</p>
+    </header>
+    {% if ai_suggestion %}
+    <ul class="clean">
+      <li class="item-row"><span>Signal?</span><span class="badge">{{ ai_suggestion.is_signal|yesno:"Likely,Unlikely" }}</span></li>
+      <li class="item-row"><span>Direction</span><span class="badge">{{ ai_suggestion.direction|default:"Unknown" }}</span></li>
+      <li class="item-row"><span>Suggested Pair</span><span class="badge">{{ ai_suggestion.pair|default:"—" }}</span></li>
+    </ul>
+    {% else %}
+    <p class="muted">AI models are still warming up or no strong signal was detected. You can label manually.</p>
+    {% endif %}
+  </article>
+</section>
+
+{% if message %}
+<section class="card" style="margin-top: 1.5rem;">
+  <header>
+    <h2>Label This Message</h2>
+    <p class="muted">Confirm whether this is a trading signal and fill in the structured fields if applicable.</p>
+  </header>
+  <form method="post" novalidate>
+    {% csrf_token %}
+    {{ form.message_id }}
+    {{ form.channel_id }}
+    <fieldset>
+      <legend>Signal classification</legend>
+      {{ form.is_signal }}
+      {% if form.is_signal.errors %}
+      <small class="secondary" style="display:block;margin-top:0.5rem;">{{ form.is_signal.errors|join:", " }}</small>
+      {% endif %}
+    </fieldset>
+
+    <div class="grid" style="margin-top: 1rem;">
+      <label>
+        <span>Direction</span>
+        {{ form.direction }}
+        {% if form.direction.errors %}<small class="secondary">{{ form.direction.errors|join:", " }}</small>{% endif %}
+      </label>
+      <label>
+        <span>Pair</span>
+        {{ form.pair }}
+        {% if form.pair.errors %}<small class="secondary">{{ form.pair.errors|join:", " }}</small>{% endif %}
+      </label>
+      <label>
+        <span>Entry</span>
+        {{ form.entry }}
+        {% if form.entry.errors %}<small class="secondary">{{ form.entry.errors|join:", " }}</small>{% endif %}
+      </label>
+      <label>
+        <span>Stop Loss</span>
+        {{ form.stop_loss }}
+        {% if form.stop_loss.errors %}<small class="secondary">{{ form.stop_loss.errors|join:", " }}</small>{% endif %}
+      </label>
+      <label>
+        <span>Leverage</span>
+        {{ form.leverage }}
+        {% if form.leverage.errors %}<small class="secondary">{{ form.leverage.errors|join:", " }}</small>{% endif %}
+      </label>
+      <label>
+        <span>Targets</span>
+        {{ form.targets }}
+        <small class="muted">{{ form.fields.targets.help_text }}</small>
+        {% if form.targets.errors %}<small class="secondary">{{ form.targets.errors|join:", " }}</small>{% endif %}
+      </label>
+    </div>
+
+    <footer style="display:flex;gap:0.75rem;align-items:center;margin-top:1.5rem;">
+      <button type="submit">Save Label</button>
+      <a class="button secondary" href="{% url 'labeling:index' %}">Skip</a>
+    </footer>
+  </form>
+</section>
+{% endif %}
+
+{% for notification in messages %}
+  <article class="card" style="margin-top:1rem;">
+    <strong>{{ notification.tags|title }}</strong>: {{ notification }}
+  </article>
+{% endfor %}
+{% endblock %}

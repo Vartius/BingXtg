@@ -7,6 +7,7 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("", include("apps.trading_bot.urls")),
     path("telegram/", include("apps.telegram_client.urls")),
+    path("labeling/", include("apps.labeling.urls")),
 ]
 
 # Serve media and static files during development

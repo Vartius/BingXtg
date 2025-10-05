@@ -13,7 +13,7 @@ def dashboard(request):
 
     return render(
         request,
-        "trading_dashboard.html",
+        "index.html",
         {
             "initial_data": json.dumps(initial_data)  # Pass as a JSON string
         },

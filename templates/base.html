@@ -340,7 +340,16 @@
       </li>
     </ul>
     <ul>
-      <li><a href="/" {% if request.path == '/' %}style="color: var(--brand); background: var(--ctp-teal-muted); border-radius: 8px;"{% endif %}>Trading Dashboard</a></li>
+      <li>
+  <a href="{% url 'dashboard' %}" {% if request.path == '/' %}style="color: var(--brand); background: var(--ctp-teal-muted); border-radius: 8px;"{% endif %}>
+          Trading Dashboard
+        </a>
+      </li>
+      <li>
+        <a href="{% url 'labeling:index' %}" {% if request.path|slice:':9' == '/labeling' %}style="color: var(--brand); background: var(--ctp-teal-muted); border-radius: 8px;"{% endif %}>
+          Labeling Studio
+        </a>
+      </li>
     </ul>
   </nav>
   <main class="container">

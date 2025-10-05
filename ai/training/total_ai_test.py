@@ -14,7 +14,6 @@ Point System:
 8) leverage: 1p
 """
 
-import sys
 import os
 import spacy
 import json
@@ -22,13 +21,19 @@ from typing import Dict, List, Tuple, Any, Optional
 from loguru import logger
 
 # Add the project root to Python path
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from ai_training.utils import (
+from utils import (
     normalize_text,
     load_database_connection,
     classify_signal_and_direction,
 )
+
+from dotenv import load_dotenv
+
+load_dotenv()
+IS_SIGNAL_MODEL_PATH = os.getenv("IS_SIGNAL_MODEL_PATH", "ai/models/is_signal_model")
+DIRECTION_MODEL_PATH = os.getenv("DIRECTION_MODEL_PATH", "ai/models/direction_model")
+NER_MODEL_PATH = os.getenv("NER_MODEL_PATH", "ai/models/ner_model")
 
 
 class TotalAITester:
@@ -67,13 +72,13 @@ class TotalAITester:
         """
         try:
             # Load classification models
-            self.nlp_is_signal = spacy.load("is_signal_model")
-            self.nlp_direction = spacy.load("direction_model")
+            self.nlp_is_signal = spacy.load(IS_SIGNAL_MODEL_PATH)
+            self.nlp_direction = spacy.load(DIRECTION_MODEL_PATH)
             logger.info("Classification models loaded successfully")
 
             # Try to load NER model
             try:
-                self.nlp_ner = spacy.load("./ai_model_fixed")
+                self.nlp_ner = spacy.load(NER_MODEL_PATH)
                 logger.info("NER model loaded successfully")
             except OSError:
                 logger.warning("NER model not found, will skip NER evaluation")

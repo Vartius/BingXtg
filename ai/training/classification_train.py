@@ -1,22 +1,22 @@
-#!/usr/bin/env python3
-
 from spacy.training.example import Example
 import random
-import sys
-import os
 
-# Add the project root to Python path so we can import modules
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from ai_training.utils import (
+from utils import (
     load_classification_data,
     evaluate_textcat_model,
     initialize_textcat_model,
 )
 
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+IS_SIGNAL_MODEL_PATH = os.getenv("IS_SIGNAL_MODEL_PATH", "ai/models/is_signal_model")
+DIRECTION_MODEL_PATH = os.getenv("DIRECTION_MODEL_PATH", "ai/models/direction_model")
+
 
 def train_is_signal_model(
-    train_data, dev_data, output_dir="is_signal_model", n_iter=20
+    train_data, dev_data, output_dir=IS_SIGNAL_MODEL_PATH, n_iter=20
 ):
     """
     Обучает модель для классификации is_signal.
@@ -52,7 +52,7 @@ def train_is_signal_model(
 
 
 def train_direction_model(
-    train_data, dev_data, output_dir="direction_model", n_iter=20
+    train_data, dev_data, output_dir=DIRECTION_MODEL_PATH, n_iter=20
 ):
     """
     Обучает модель для классификации direction (только на is_signal=1).
@@ -111,5 +111,5 @@ if __name__ == "__main__":
 
     print("\n=== Training Complete ===")
     print("Models saved to:")
-    print("- is_signal_model/")
-    print("- direction_model/")
+    print(f"- {IS_SIGNAL_MODEL_PATH}/")
+    print(f"- {DIRECTION_MODEL_PATH}/")

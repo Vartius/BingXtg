@@ -1,15 +1,15 @@
 # Telegram Signal Trading Bot for BingX
 
-This is a Python-based trading bot that automates trading on the BingX exchange by parsing signals from Telegram channels. It features a real-time GUI, live trading, and simulation modes.
+This is a Django-based trading platform that automates trades on the BingX exchange by parsing signals from curated Telegram channels. It ships with an AI-assisted parsing pipeline, a real-time web dashboard, and both live and simulation trading modes.
 
 ## ✨ Features
 
--   **Telegram Integration**: Parses trading signals from specified public or private Telegram channels.
--   **Automated Trading**: Automatically places market orders on the BingX Perpetual Swap market.
--   **Live & Simulation Modes**: Test your strategies with a paper trading mode or run it live with real assets.
--   **Dynamic Investment Strategy**: Adjusts the capital allocated to a trade based on the historical win rate of the signal channel.
--   **Real-Time GUI**: A PyQt6-based interface displays current trades, PnL, account balance, and overall win rate.
--   **Command Interface**: Manage the bot via commands in your private Telegram chat (e.g., check status, view data).
+-   **Telegram Ingestion**: Asynchronous Telethon clients capture channel messages, normalize them, and persist them to SQLite with channel metadata.
+-   **AI Signal Parsing**: HuggingFace transformers and spaCy classifiers detect genuine trading signals, infer direction, and extract entries, targets, and stop losses. HuggingFace models take precedence when available.
+-   **Automated Trading**: The trading engine sizes positions using per-channel win rates and can execute orders on BingX or run in simulation.
+-   **Real-Time Dashboard**: A Django + Channels web UI (Catppuccin teal theme) streams live trades, balances, and performance metrics over WebSockets.
+-   **Labeling Studio**: Browser-based labeling workflow with AI suggestions and optional batch auto-labeling via management command.
+-   **Maintenance Tooling**: Scripts and commands validate configuration, repair datasets, and keep models fresh.
 
 ## ⚠️ Disclaimer
 
@@ -18,10 +18,11 @@ Trading cryptocurrency involves significant risk. This bot is provided as-is, an
 ## 🛠️ Requirements
 
 -   Python 3.11+
--   A Telegram account and API credentials.
--   A BingX account and API credentials.
--   [uv](https://github.com/astral-sh/uv) (recommended for fast package installation)
+-   A Telegram account and API credentials
+-   A BingX account and API credentials
+-   [uv](https://github.com/astral-sh/uv) (primary package manager)
 -   [Docker](https://www.docker.com/) (optional, for containerized deployment)
+-   Redis (optional) for production Channel layers; the project falls back to an in-memory backend locally
 
 ## 🚀 Setup and Configuration
 
@@ -31,19 +32,14 @@ Trading cryptocurrency involves significant risk. This bot is provided as-is, an
     cd BingXtg
     ```
 
-2.  **Create a Virtual Environment**:
+2.  **Install Dependencies**:
     ```bash
-    python -m venv .venv
-    source .venv/bin/activate  # On Windows use `.venv\Scripts\activate`
+    uv sync
     ```
 
-3.  **Install Dependencies**:
+3.  **(Optional) Spawn a Shell with Dependencies**:
     ```bash
-    # Using uv (recommended)
-    uv pip install -r requirements.txt
-
-    # Or using pip
-    pip install -r requirements.txt
+    uv shell
     ```
 
 4.  **Configure the Bot**:
@@ -52,7 +48,8 @@ Trading cryptocurrency involves significant risk. This bot is provided as-is, an
     -   Adjust the trading parameters like `LEVERAGE`, `TP` (Take Profit), and `SL` (Stop Loss) to fit your strategy.
 
 5.  **Configure Signal Channels**:
-    -   Edit `src/data/channels.json`.
+    -   The `data/` directory will be created automatically on first run.
+    -   Edit `data/channels.json` (created after first bot run) to configure which Telegram channels to parse.
     -   For each channel you want to parse, add an entry using its Telegram Chat ID as the key.
     -   Define the `regex` to capture the coin ticker (e.g., `(BTC)`), and the keywords that trigger a `long` or `short` trade.
     -   Set `"do": true` to enable parsing for that channel.
@@ -71,7 +68,7 @@ Trading cryptocurrency involves significant risk. This bot is provided as-is, an
     ```
 
 6.  **Prepare Data Files**:
-    -   The `src/data/` directory contains the bot's state and data. The required files (`state.json`, `winrate.json`, `table.json`) will be created automatically on the first run if they don't exist.
+    -   The `data/` directory and required files (`state.json`, `winrate.json`, `table.json`, `channels.json`) will be created automatically on the first run if they don't exist.
 
 ## ▶️ Running the Bot
 
@@ -79,13 +76,9 @@ Once configured, you can start the bot from your terminal.
 
 ## 🚀 Quick Start
 
-1.  **Install Dependencies**:
+1.  **Install Dependencies** (if not already):
     ```bash
-    # Using uv (recommended)
     uv sync
-    
-    # Or using pip
-    pip install -r requirements.txt
     ```
 
 2.  **Configure Environment**:
@@ -96,12 +89,12 @@ Once configured, you can start the bot from your terminal.
 
 3.  **Run Database Migrations**:
     ```bash
-    python manage.py migrate
+    uv run manage.py migrate
     ```
 
 4.  **Start the Django Development Server**:
     ```bash
-    python manage.py runserver
+    uv run manage.py runserver
     ```
 
 5.  **Access the Web Interface**:
@@ -110,18 +103,42 @@ Once configured, you can start the bot from your terminal.
 
 6.  **Start the Trading Bot** (in a separate terminal):
     ```bash
-    python manage.py start_bot
+    uv run manage.py start_bot
     ```
 
 ## 🧠 AI Model Training
 
-All AI model training is now done exclusively in the `ai.ipynb` Jupyter notebook. The Django application uses the trained models for inference only.
+The project ships with a Hugging Face training toolkit under `ai/training/hf`. It exports labeled messages from `total.db`, fine-tunes `xlm-roberta-base` for both classification and NER, and places the resulting models in `ai/models/` for immediate use by `ai/inference/ai_service.py`.
 
-### Training Process:
-1. Open `ai.ipynb` in Jupyter Lab or VS Code
-2. Follow the notebook cells to train both classifier and NER models
-3. Models are automatically saved to the `ai_model/` directory
-4. The Django application will automatically use the trained models
+### 1. Export labeled data
+
+```bash
+uv run python ai/training/hf/export_data.py --db total.db --out data_exports
+```
+
+This creates `data_exports/classification_data.csv` and `data_exports/ner_data.jsonl`, mirroring the schemas expected by `datasets`.
+
+### 2. Fine-tune the 4-way classifier
+
+```bash
+uv run python ai/training/hf/train_classifier.py --data-file data_exports/classification_data.csv --output-dir ai/models/signal_classifier
+```
+
+### 3. Fine-tune the token-classification NER model
+
+```bash
+uv run python ai/training/hf/train_ner.py --data-file data_exports/ner_data.jsonl --output-dir ai/models/ner_extractor
+```
+
+Both scripts expose flags for epochs, batch size, and mixed precision if you need to iterate.
+
+### 4. Smoke-test inference locally
+
+```bash
+uv run python ai/inference/predict.py "BTC/USDT long 10x entry 60000 target 62000"
+```
+
+The Django runtime will automatically prefer the HuggingFace models when these folders exist, falling back to the legacy spaCy models otherwise.
 
 ## 🐳 Docker Usage
 
@@ -147,58 +164,58 @@ You can build and run the bot in a Docker container for isolated and consistent 
 
 ## 📂 Project Structure
 
-The project follows Django best practices with a modular app structure:
+The high-level layout mirrors the reference in `PROJECT.MD`:
 
 ```
 BingXtg/
-├── apps/                     # Django applications
-│   ├── telegram_client/      # Telegram integration
-│   └── trading_bot/          # Main trading bot functionality
-├── bingxtg_project/          # Main Django project configuration
-├── utils/                    # Shared utilities and business logic
-├── static/                   # Static files (CSS, JS, images)
-├── templates/                # Django templates
-├── data/                     # Configuration and data files
-├── ai.ipynb                  # AI model training notebook
-├── ai_model/                 # Trained AI models (classifier & NER)
-├── manage.py                 # Django management script
-└── requirements.txt          # Python dependencies
+├── ai/                # Inference utilities, labeling tools, trained models
+├── apps/
+│   ├── labeling/      # Browser-based labeling studio + auto-labeling services
+│   ├── telegram_client/  # Telegram ingestion clients
+│   └── trading_bot/   # Trading engine, text parsing, websocket consumers
+├── bingxtg_project/   # Django project settings, ASGI/WSGI, URLs
+├── core/              # Shared config, database manager, trading helpers
+├── data/              # Runtime JSON config/state (created on first run)
+├── data_exports/      # Exported training datasets
+├── docs/              # Comprehensive documentation
+├── logs/              # Rotated log files
+├── static/            # CSS/JS assets (Catppuccin teal theme)
+├── staticfiles/       # Collected static files (after collectstatic)
+├── templates/         # Django templates for dashboard + labeling UI
+├── bkp/               # Database backups
+├── manage.py
+├── pyproject.toml     # Project metadata and dependencies (managed by uv)
+├── total.db           # Main SQLite database (all data)
+└── uv.lock            # Resolved dependency lockfile
 ```
-
-See [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md) for detailed documentation.
 
 ## 🎮 Web Interface
 
 The project includes a modern web interface built with Django:
 
 ### Trading Dashboard
-- Real-time trading status and PnL
-- Live order monitoring
-- Performance analytics
-- WebSocket-powered real-time updates
+- Real-time trading status, balances, and order history
+- Live order monitoring with WebSocket updates
+- Simulation/live mode indicator and per-channel win rate stats
 
-### Admin Panel
-- User management
-- Database administration
-- System configuration
+### Labeling Studio
+- Web-first annotation workflow with AI suggestions
+- Batch auto-labeling via management command or dashboard action
+- SQLite-backed datasets with progress tracking
 
 ## 🤖 Management Commands
 
-The project includes several Django management commands:
+Common Django management commands:
 
 ```bash
-# Start the trading bot
-python manage.py start_bot
+# Start the trading bot (prompts for simulation/live mode)
+uv run manage.py start_bot
 
-# Extract messages from Telegram
-python manage.py extract_messages
+# Run database migrations
+uv run manage.py migrate
 
-# Train AI models
-python manage.py train_models
-
-# Database maintenance
-python manage.py migrate
-python manage.py collectstatic
+# Launch the batch auto-labeling workflow
+uv run manage.py auto_label
 ```
 
 ## 🤝 Contributing

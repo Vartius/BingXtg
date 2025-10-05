@@ -80,8 +80,60 @@ document.addEventListener('DOMContentLoaded', function() {
             // Hide empty state and show table
             emptyState.style.display = 'none';
             document.querySelector('.orders-table').style.display = 'table';
+
+            const getStatus = (order) => {
+                const statusValue = Array.isArray(order)
+                    ? order[12]
+                    : order && typeof order === 'object'
+                        ? order.status
+                        : undefined;
+
+                return String(statusValue ?? 'OPEN').trim().toLowerCase();
+            };
+
+            const getTradeId = (order) => {
+                if (Array.isArray(order)) {
+                    return Number(order[0]);
+                }
+                if (order && typeof order === 'object') {
+                    return Number(order.trade_id);
+                }
+                return Number.NaN;
+            };
+
+            const sortById = (orders) => orders.sort((a, b) => {
+                const idA = getTradeId(a);
+                const idB = getTradeId(b);
+
+                const safeIdA = Number.isFinite(idA) ? idA : Number.MAX_SAFE_INTEGER;
+                const safeIdB = Number.isFinite(idB) ? idB : Number.MAX_SAFE_INTEGER;
+
+                return safeIdA - safeIdB;
+            });
+
+            const openOrders = [];
+            const waitingOrders = [];
+            const otherOrders = [];
+
+            data.orders.forEach((order) => {
+                const status = getStatus(order);
+
+                if (status === 'open') {
+                    openOrders.push(order);
+                } else if (status === 'waiting') {
+                    waitingOrders.push(order);
+                } else {
+                    otherOrders.push(order);
+                }
+            });
+
+            const sortedOrders = [
+                ...sortById(openOrders),
+                ...sortById(waitingOrders),
+                ...sortById(otherOrders)
+            ];
             
-            data.orders.forEach((order, index) => {
+            sortedOrders.forEach((order, index) => {
                 console.log('Processing order', index, ':', order);
                 const row = tableBody.insertRow();
                 

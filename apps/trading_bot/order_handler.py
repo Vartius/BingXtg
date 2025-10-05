@@ -122,13 +122,27 @@ def place_order(channel_id: int, data: dict, is_simulation: bool) -> bool:
         )
 
         # Base investment is 1% of balance, with a bonus up to MAX_PERCENT based on winrate
-        investment_percent = 0.01 + (MAX_PERCENT / 100 - 0.01) * winrate_factor
+        max_percent_decimal = MAX_PERCENT / 100  # Convert percentage to decimal
+        investment_percent = 0.01 + (max_percent_decimal - 0.01) * winrate_factor
 
-        # Determine margin from BingX available balance (fallback to START_BALANCE if unavailable)
-        _, available_balance = get_balance()
-        if available_balance is None:
+        # Determine margin from BingX available balance (fallback to START_BALANCE if unavailable or in simulation)
+        if is_simulation:
+            # In simulation mode, always use START_BALANCE
             available_balance = START_BALANCE
+        else:
+            # In live mode, use actual BingX balance with fallback
+            _, available_balance = get_balance()
+            if available_balance is None:
+                available_balance = START_BALANCE
         margin = float(available_balance) * float(investment_percent)
+
+        # Log margin calculation details for debugging
+        logger.debug(
+            f"Margin calculation - Channel: {normalized_channel_id}, Wins: {wins}, Losses: {losses}, "
+            f"Winrate factor: {winrate_factor:.4f}, Max percent: {MAX_PERCENT}% ({max_percent_decimal:.4f}), "
+            f"Investment %: {investment_percent:.4f}, Available balance: {available_balance}, "
+            f"Calculated margin: {margin:.2f}"
+        )
         if margin <= 0:
             logger.error("Calculated margin <= 0; cannot place order.")
             return False

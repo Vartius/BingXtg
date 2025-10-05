@@ -5,21 +5,23 @@ from spacy.training.example import Example
 from spacy.util import minibatch
 from sklearn.model_selection import train_test_split
 import random
-import sys
-import os
 
-# Add the project root to Python path so we can import modules
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from ai_training.utils import (
+from utils import (
     normalize_text,
     load_ner_training_data,
     initialize_ner_model,
     print_training_sample,
 )
 
+import os
+from dotenv import load_dotenv
 
-def train_custom_ner(train_data, dev_data, output_dir="./ai_model_fixed", n_iter=20):
+load_dotenv()
+
+NER_MODEL_PATH = os.getenv("NER_MODEL_PATH", "ai/models/ner_model")
+
+
+def train_custom_ner(train_data, dev_data, output_dir=NER_MODEL_PATH, n_iter=20):
     """Train custom NER model with proper alignment"""
 
     print("🚀 Creating multilingual spaCy model...")
@@ -119,7 +121,7 @@ def main():
 
         # Now try loading from disk
         print("\nTesting loaded model from disk:")
-        nlp_loaded = spacy.load("./ai_model_fixed")
+        nlp_loaded = spacy.load(NER_MODEL_PATH)
         doc_loaded = nlp_loaded(test_text_normalized)
 
         print("Entities found by loaded model:")
@@ -136,7 +138,7 @@ def main():
         traceback.print_exc()
 
     print("\n✅ Model training completed successfully!")
-    print("📁 Model saved to: ./ai_model_fixed")
+    print(f"📁 Model saved to: {NER_MODEL_PATH}")
     print(f"📊 Training examples: {len(train_examples)}")
     print(f"📊 Development examples: {len(dev_examples)}")
     print("🎯 Alignment issues resolved: Zero spaCy alignment warnings!")
