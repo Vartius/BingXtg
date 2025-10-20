@@ -9,13 +9,11 @@ logger = logging.getLogger(__name__)
 load_dotenv()
 
 # Required environment variables and their expected types
-ENV_SCHEMA = {
+REQUIRED_ENV_SCHEMA = {
     # Telegram API
     "API_ID": int,
     "API_HASH": str,
-    "FOLDER_ID": int,
     # BingX API
-    "APIURL": str,
     "APIKEY": str,
     "SECRETKEY": str,
     # Trading Config
@@ -29,22 +27,30 @@ ENV_SCHEMA = {
     "DJANGO_SECRET_KEY": str,
     "DJANGO_DEBUG": bool,
     "DJANGO_ALLOWED_HOSTS": str,
+}
+
+# Optional environment variables with their expected types and defaults
+OPTIONAL_ENV_SCHEMA = {
+    # Telegram (optional)
+    "FOLDER_ID": (int, 1),
+    # BingX (optional)
+    "APIURL": (str, "https://open-api.bingx.com"),
     # Paths (optional defaults)
-    "DB_PATH": str,
-    "MODEL_DIR": str,
-    "SESSION_FILE": str,
-    "DATA_DIR": str,
+    "DB_PATH": (str, "total.db"),
+    "MODEL_DIR": (str, "ai_model"),
+    "SESSION_FILE": (str, "my_account.session"),
+    "DATA_DIR": (str, "data"),
     # Logging
-    "LOG_LEVEL": str,
-    # Redis
-    "REDIS_HOST": str,
-    "REDIS_PORT": int,
-    # Email (optional)
-    "EMAIL_HOST": str,
-    "EMAIL_PORT": int,
-    "EMAIL_USE_TLS": bool,
-    "EMAIL_HOST_USER": str,
-    "EMAIL_HOST_PASSWORD": str,
+    "LOG_LEVEL": (str, "INFO"),
+    # Redis (optional - uses in-memory channel layer if not provided)
+    "REDIS_HOST": (str, "127.0.0.1"),
+    "REDIS_PORT": (int, 6379),
+    # Email (optional - for notifications)
+    "EMAIL_HOST": (str, ""),
+    "EMAIL_PORT": (int, 587),
+    "EMAIL_USE_TLS": (bool, True),
+    "EMAIL_HOST_USER": (str, ""),
+    "EMAIL_HOST_PASSWORD": (str, ""),
 }
 
 SCHEMAS = {
@@ -243,10 +249,12 @@ def _ensure_schema(conn: sqlite3.Connection):
 
 
 def _validate_env():
+    """Validate required environment variables and warn about optional ones."""
     missing = []
     wrong_types = []
 
-    for key, expected_type in ENV_SCHEMA.items():
+    # Validate required environment variables
+    for key, expected_type in REQUIRED_ENV_SCHEMA.items():
         val = os.getenv(key)
         if val is None or val.strip() == "":
             missing.append(key)
@@ -263,15 +271,43 @@ def _validate_env():
         except ValueError:
             wrong_types.append((key, val, expected_type.__name__))
 
+    # Validate optional environment variables (only if provided)
+    optional_warnings = []
+    for key, (expected_type, default) in OPTIONAL_ENV_SCHEMA.items():
+        val = os.getenv(key)
+        if val is None or val.strip() == "":
+            # Optional variables don't need to be present
+            continue
+
+        try:
+            if expected_type is bool:
+                if val.lower() not in ("true", "false", "1", "0"):
+                    raise ValueError
+            elif expected_type is int:
+                int(val)
+            elif expected_type is float:
+                float(val)
+        except ValueError:
+            optional_warnings.append((key, val, expected_type.__name__))
+
+    # Report errors for required variables
     if missing:
-        logger.warning(f"Missing environment variables: {', '.join(missing)}")
+        logger.error(f"Missing REQUIRED environment variables: {', '.join(missing)}")
 
     if wrong_types:
         for key, val, typ in wrong_types:
-            logger.error(f"Invalid type for {key}: '{val}' (expected {typ})")
+            logger.error(f"Invalid type for REQUIRED {key}: '{val}' (expected {typ})")
 
+    # Only raise error if required variables are missing/invalid
     if missing or wrong_types:
-        raise EnvironmentError("Environment configuration is invalid!")
+        raise EnvironmentError("Required environment configuration is invalid!")
+
+    # Report warnings for optional variables (not fatal)
+    if optional_warnings:
+        for key, val, typ in optional_warnings:
+            logger.warning(
+                f"Invalid type for optional {key}: '{val}' (expected {typ}), using default"
+            )
 
     logger.info("All required environment variables are valid.")
 
