@@ -318,7 +318,6 @@ Use the browser-based labeling studio or batch auto-labeling:
 uv run manage.py auto_label --limit 50
 ```
 
-![Labeling Studio](docs/images/labeling-studio.png)
 
 </details>
 
@@ -433,8 +432,6 @@ The system automatically prefers HuggingFace models when available, ensuring sta
 
 ### Trading Dashboard
 
-![Dashboard Screenshot](docs/images/dashboard-full.png)
-
 **Features:**
 - 📊 **Real-time Order Monitoring**: WebSocket-powered updates with sub-second latency
 - 💰 **Balance Tracking**: Live USDT balance and P&L visualization
@@ -453,7 +450,6 @@ socket.onmessage = function(e) {
 
 ### Labeling Studio
 
-![Labeling Interface](docs/images/labeling-interface.png)
 
 **Capabilities:**
 - 🤖 **AI-Assisted Annotation**: Pre-filled suggestions from existing models
@@ -725,7 +721,7 @@ Contributions are welcome! This project follows industry best practices:
 
 1. **Fork & Clone**
    ```bash
-   git clone https://github.com/YOUR_USERNAME/BingXtg.git
+   git clone https://github.com/Vartius/BingXtg.git
    cd BingXtg
    git checkout -b feature/your-feature-name
    ```
@@ -864,9 +860,8 @@ Through this project, I gained experience in:
 <div align="center">
 
 [![GitHub](https://img.shields.io/badge/GitHub-Vartius-181717?style=for-the-badge&logo=github)](https://github.com/Vartius)
-[![LinkedIn](https://img.shields.io/badge/LinkedIn-Connect-0A66C2?style=for-the-badge&logo=linkedin)](https://linkedin.com/in/yourprofile)
-[![Email](https://img.shields.io/badge/Email-Contact-EA4335?style=for-the-badge&logo=gmail&logoColor=white)](mailto:your.email@example.com)
-[![Portfolio](https://img.shields.io/badge/Portfolio-Visit-4285F4?style=for-the-badge&logo=google-chrome&logoColor=white)](https://yourportfolio.com)
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-Connect-0A66C2?style=for-the-badge&logo=linkedin)](https://linkedin.com/in/matsvei-kasparovich)
+[![Email](https://img.shields.io/badge/Email-Contact-EA4335?style=for-the-badge&logo=gmail&logoColor=white)](mailto:mkasporpol@gmail.com)
 
 **⭐ Star this repo if you find it useful!**
 
