@@ -36,3 +36,4 @@ models/
 data_exports/
 graph_gen
 docs/images/README.md
+migrations/
