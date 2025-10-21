@@ -182,72 +182,14 @@ class DatabaseManager:
         """Create the 'labeled' table if it doesn't exist."""
         query = """
             CREATE TABLE IF NOT EXISTS labeled (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                message_id INTEGER NOT NULL,
-                channel_id INTEGER NOT NULL,
-                message TEXT NOT NULL,
-                is_signal BOOLEAN NOT NULL,
-                labeled_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                direction INTEGER,
-                pair TEXT,
-                stop_loss REAL,
-                take_profit REAL,
-                leverage REAL,
-                targets TEXT,
-                entry REAL,
-                ai_is_signal INTEGER,
-                ai_confidence REAL,
-                ai_direction TEXT,
-                ai_pair TEXT,
-                ai_stop_loss REAL,
-                ai_leverage REAL,
-                ai_targets TEXT,
-                ai_entry REAL,
-                ai_processed_at TIMESTAMP,
-                pair_start INTEGER,
-                pair_end INTEGER,
-                stop_loss_start INTEGER,
-                stop_loss_end INTEGER,
-                leverage_start INTEGER,
-                leverage_end INTEGER,
-                target_4_start INTEGER,
-                target_4_end INTEGER,
-                target_1_start INTEGER,
-                target_1_end INTEGER,
-                target_2_start INTEGER,
-                target_2_end INTEGER,
-                target_3_start INTEGER,
-                target_3_end INTEGER,
-                target_5_start INTEGER,
-                target_5_end INTEGER,
-                target_6_start INTEGER,
-                target_6_end INTEGER,
-                target_7_start INTEGER,
-                target_7_end INTEGER,
-                target_8_start INTEGER,
-                target_8_end INTEGER,
-                target_9_start INTEGER,
-                target_9_end INTEGER,
-                target_10_start INTEGER,
-                target_10_end INTEGER,
-                target_11_start INTEGER,
-                target_11_end INTEGER,
-                target_12_start INTEGER,
-                target_12_end INTEGER,
-                target_13_start INTEGER,
-                target_13_end INTEGER,
-                target_14_start INTEGER,
-                target_14_end INTEGER,
-                target_15_start INTEGER,
-                target_15_end INTEGER,
-                target_16_start INTEGER,
-                target_16_end INTEGER,
-                target_17_start INTEGER,
-                target_17_end INTEGER,
-                entry_start INTEGER,
-                entry_end INTEGER,
-                FOREIGN KEY (message_id) REFERENCES messages (id)
-            )
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    message_id INTEGER NOT NULL,
+                    channel_id INTEGER NOT NULL,
+                    message TEXT NOT NULL,
+                    is_signal BOOLEAN NOT NULL,
+                    labeled_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, direction INTEGER, pair TEXT, stop_loss REAL, take_profit REAL, leverage REAL, targets TEXT, entry REAL, ai_is_signal INTEGER, ai_confidence REAL, ai_direction TEXT, ai_pair TEXT, ai_stop_loss REAL, ai_leverage REAL, ai_targets TEXT, ai_entry REAL, ai_processed_at TIMESTAMP, pair_start INTEGER, pair_end INTEGER, stop_loss_start INTEGER, stop_loss_end INTEGER, leverage_start INTEGER, leverage_end INTEGER, target_4_start INTEGER, target_4_end INTEGER, target_1_start INTEGER, target_1_end INTEGER, target_2_start INTEGER, target_2_end INTEGER, target_3_start INTEGER, target_3_end INTEGER, target_5_start INTEGER, target_5_end INTEGER, target_6_start INTEGER, target_6_end INTEGER, target_7_start INTEGER, target_7_end INTEGER, target_8_start INTEGER, target_8_end INTEGER, target_9_start INTEGER, target_9_end INTEGER, target_10_start INTEGER, target_10_end INTEGER, target_11_start INTEGER, target_11_end INTEGER, target_12_start INTEGER, target_12_end INTEGER, target_13_start INTEGER, target_13_end INTEGER, target_14_start INTEGER, target_14_end INTEGER, target_15_start INTEGER, target_15_end INTEGER, target_16_start INTEGER, target_16_end INTEGER, target_17_start INTEGER, target_17_end INTEGER, entry_start INTEGER, entry_end INTEGER,
+                    FOREIGN KEY (message_id) REFERENCES messages (id)
+                )
         """
         self._execute_query(query)
         logger.debug("Table 'labeled' is ready.")
@@ -285,10 +227,10 @@ class DatabaseManager:
         # Trigger to auto-update updated_at on channels table
         trigger_query = """
             CREATE TRIGGER IF NOT EXISTS trg_channels_updated_at
-            AFTER UPDATE ON channels
-            BEGIN
-                UPDATE channels SET updated_at = CURRENT_TIMESTAMP WHERE channel_id = NEW.channel_id;
-            END
+        AFTER UPDATE ON channels
+        BEGIN
+          UPDATE channels SET updated_at = CURRENT_TIMESTAMP WHERE channel_id = NEW.channel_id;
+        END
         """
         try:
             self._execute_query(trigger_query)
@@ -312,24 +254,23 @@ class DatabaseManager:
         """Create the 'trades' table if it doesn't exist."""
         query = """
             CREATE TABLE IF NOT EXISTS trades (
-                trade_id INTEGER PRIMARY KEY AUTOINCREMENT,
-                channel_id INTEGER,
-                coin TEXT,
-                direction TEXT,
-                targets TEXT,
-                leverage REAL,
-                sl REAL,
-                margin REAL,
-                entry_price REAL,
-                current_price REAL,
-                pnl REAL,
-                pnl_percent REAL,
-                status TEXT,
-                close_price REAL,
-                closed_at TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                activated_at TIMESTAMP,
-                FOREIGN KEY(channel_id) REFERENCES channels(channel_id) ON DELETE SET NULL
+              trade_id INTEGER PRIMARY KEY AUTOINCREMENT,
+              channel_id INTEGER,
+              coin TEXT,
+              direction TEXT,
+              targets TEXT,
+              leverage REAL,
+              sl REAL,
+              margin REAL,
+              entry_price REAL,
+              current_price REAL,
+              pnl REAL,
+              pnl_percent REAL,
+              status TEXT,
+              close_price REAL,
+              closed_at TIMESTAMP,
+              updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, activated_at TIMESTAMP,
+              FOREIGN KEY(channel_id) REFERENCES channels(channel_id) ON DELETE SET NULL
             )
         """
         self._execute_query(query)
@@ -348,14 +289,14 @@ class DatabaseManager:
         """Create the 'trading_stats' table if it doesn't exist."""
         query = """
             CREATE TABLE IF NOT EXISTS trading_stats (
-                id INTEGER PRIMARY KEY DEFAULT 1 CHECK (id = 1),
-                total_trades INTEGER DEFAULT 0,
-                wins INTEGER DEFAULT 0,
-                losses INTEGER DEFAULT 0,
-                win_rate REAL DEFAULT 0.0,
-                profit REAL DEFAULT 0.0,
-                roi REAL DEFAULT 0.0,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+              id INTEGER PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+              total_trades INTEGER DEFAULT 0,
+              wins INTEGER DEFAULT 0,
+              losses INTEGER DEFAULT 0,
+              win_rate REAL DEFAULT 0.0,
+              profit REAL DEFAULT 0.0,
+              roi REAL DEFAULT 0.0,
+              updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """
         self._execute_query(query)
