@@ -143,11 +143,25 @@ class DatabaseManager:
     def init_database(self) -> None:
         """Initialize the database and create all required tables."""
         logger.info(f"Initializing database at {self.db_path}...")
+
+        # Enable WAL mode and foreign keys
+        with self._get_connection() as conn:
+            conn.execute("PRAGMA journal_mode=WAL")
+            conn.execute("PRAGMA foreign_keys=ON")
+            conn.execute("PRAGMA synchronous=NORMAL")
+
+        # Create all tables
         self.init_channels_table()
         self.init_messages_table()
         self.init_labeled_table()
-        # Initialize app_state for persistent app-level settings/counters
         self.init_app_state_table()
+        self.init_trades_table()
+        self.init_trading_stats_table()
+
+        # Create indexes and triggers
+        self.init_indexes()
+        self.init_triggers()
+
         logger.info("Database initialized successfully.")
 
     def init_messages_table(self) -> None:
@@ -158,8 +172,7 @@ class DatabaseManager:
                 channel_id INTEGER NOT NULL,
                 message TEXT NOT NULL,
                 is_signal BOOLEAN NOT NULL DEFAULT 0,
-                regex TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                regex TEXT
             )
         """
         self._execute_query(query)
@@ -170,42 +183,73 @@ class DatabaseManager:
         query = """
             CREATE TABLE IF NOT EXISTS labeled (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                message_id INTEGER NOT NULL UNIQUE,
+                message_id INTEGER NOT NULL,
                 channel_id INTEGER NOT NULL,
                 message TEXT NOT NULL,
                 is_signal BOOLEAN NOT NULL,
+                labeled_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 direction INTEGER,
                 pair TEXT,
                 stop_loss REAL,
+                take_profit REAL,
                 leverage REAL,
                 targets TEXT,
                 entry REAL,
-                labeled_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                ai_is_signal INTEGER,
+                ai_confidence REAL,
+                ai_direction TEXT,
+                ai_pair TEXT,
+                ai_stop_loss REAL,
+                ai_leverage REAL,
+                ai_targets TEXT,
+                ai_entry REAL,
+                ai_processed_at TIMESTAMP,
+                pair_start INTEGER,
+                pair_end INTEGER,
+                stop_loss_start INTEGER,
+                stop_loss_end INTEGER,
+                leverage_start INTEGER,
+                leverage_end INTEGER,
+                target_4_start INTEGER,
+                target_4_end INTEGER,
+                target_1_start INTEGER,
+                target_1_end INTEGER,
+                target_2_start INTEGER,
+                target_2_end INTEGER,
+                target_3_start INTEGER,
+                target_3_end INTEGER,
+                target_5_start INTEGER,
+                target_5_end INTEGER,
+                target_6_start INTEGER,
+                target_6_end INTEGER,
+                target_7_start INTEGER,
+                target_7_end INTEGER,
+                target_8_start INTEGER,
+                target_8_end INTEGER,
+                target_9_start INTEGER,
+                target_9_end INTEGER,
+                target_10_start INTEGER,
+                target_10_end INTEGER,
+                target_11_start INTEGER,
+                target_11_end INTEGER,
+                target_12_start INTEGER,
+                target_12_end INTEGER,
+                target_13_start INTEGER,
+                target_13_end INTEGER,
+                target_14_start INTEGER,
+                target_14_end INTEGER,
+                target_15_start INTEGER,
+                target_15_end INTEGER,
+                target_16_start INTEGER,
+                target_16_end INTEGER,
+                target_17_start INTEGER,
+                target_17_end INTEGER,
+                entry_start INTEGER,
+                entry_end INTEGER,
                 FOREIGN KEY (message_id) REFERENCES messages (id)
             )
         """
         self._execute_query(query)
-
-        try:
-            existing = self._get_table_columns("labeled")
-            columns_to_add = [
-                ("direction", "INTEGER"),
-                ("pair", "TEXT"),
-                ("stop_loss", "REAL"),
-                ("leverage", "REAL"),
-                ("targets", "TEXT"),
-                ("entry", "REAL"),
-            ]
-
-            for column_name, column_type in columns_to_add:
-                if column_name not in existing:
-                    self._execute_query(
-                        f"ALTER TABLE labeled ADD COLUMN {column_name} {column_type}"
-                    )
-                    logger.debug(f"Added column '{column_name}' to labeled table.")
-        except Exception as e:
-            logger.warning(f"Error checking/adding columns for labeled table: {e}")
-
         logger.debug("Table 'labeled' is ready.")
 
     def init_channels_table(self) -> None:
@@ -221,6 +265,37 @@ class DatabaseManager:
         self._execute_query(query)
         logger.debug("Table 'channels' is ready.")
 
+    def init_indexes(self) -> None:
+        """Create all required indexes for the database."""
+        indexes = [
+            "CREATE INDEX IF NOT EXISTS idx_messages_channel_id ON messages(channel_id)",
+            "CREATE INDEX IF NOT EXISTS idx_labeled_message_id ON labeled(message_id)",
+            "CREATE INDEX IF NOT EXISTS idx_labeled_channel_id ON labeled(channel_id)",
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_labeled_message_id_unique ON labeled(message_id)",
+        ]
+        for index_query in indexes:
+            try:
+                self._execute_query(index_query)
+            except Exception as e:
+                logger.warning(f"Error creating index: {e}")
+        logger.debug("Database indexes created.")
+
+    def init_triggers(self) -> None:
+        """Create all required triggers for the database."""
+        # Trigger to auto-update updated_at on channels table
+        trigger_query = """
+            CREATE TRIGGER IF NOT EXISTS trg_channels_updated_at
+            AFTER UPDATE ON channels
+            BEGIN
+                UPDATE channels SET updated_at = CURRENT_TIMESTAMP WHERE channel_id = NEW.channel_id;
+            END
+        """
+        try:
+            self._execute_query(trigger_query)
+            logger.debug("Database triggers created.")
+        except Exception as e:
+            logger.warning(f"Error creating triggers: {e}")
+
     # ==================== APP STATE (PERSISTENT) ====================
     def init_app_state_table(self) -> None:
         """Create a simple key-value table for app-level state (counters, pointers)."""
@@ -232,6 +307,59 @@ class DatabaseManager:
         """
         self._execute_query(query)
         logger.debug("Table 'app_state' is ready.")
+
+    def init_trades_table(self) -> None:
+        """Create the 'trades' table if it doesn't exist."""
+        query = """
+            CREATE TABLE IF NOT EXISTS trades (
+                trade_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                channel_id INTEGER,
+                coin TEXT,
+                direction TEXT,
+                targets TEXT,
+                leverage REAL,
+                sl REAL,
+                margin REAL,
+                entry_price REAL,
+                current_price REAL,
+                pnl REAL,
+                pnl_percent REAL,
+                status TEXT,
+                close_price REAL,
+                closed_at TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                activated_at TIMESTAMP,
+                FOREIGN KEY(channel_id) REFERENCES channels(channel_id) ON DELETE SET NULL
+            )
+        """
+        self._execute_query(query)
+
+        # Create index for trades
+        try:
+            self._execute_query(
+                "CREATE INDEX IF NOT EXISTS idx_trades_channel_id ON trades(channel_id)"
+            )
+        except Exception as e:
+            logger.warning(f"Error creating trades index: {e}")
+
+        logger.debug("Table 'trades' is ready.")
+
+    def init_trading_stats_table(self) -> None:
+        """Create the 'trading_stats' table if it doesn't exist."""
+        query = """
+            CREATE TABLE IF NOT EXISTS trading_stats (
+                id INTEGER PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+                total_trades INTEGER DEFAULT 0,
+                wins INTEGER DEFAULT 0,
+                losses INTEGER DEFAULT 0,
+                win_rate REAL DEFAULT 0.0,
+                profit REAL DEFAULT 0.0,
+                roi REAL DEFAULT 0.0,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """
+        self._execute_query(query)
+        logger.debug("Table 'trading_stats' is ready.")
 
     def get_app_state(self, key: str) -> Optional[str]:
         """Get a value from app_state by key."""
